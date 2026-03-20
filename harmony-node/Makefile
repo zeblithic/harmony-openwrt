@@ -78,14 +78,17 @@ define Package/harmony-node/install
 
 	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_BIN) ./files/harmony-node.firewall $(1)/etc/harmony-node.firewall
+
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/harmony-node.uci-defaults $(1)/etc/uci-defaults/99-harmony-node-firewall
 endef
 
 define Package/harmony-node/postinst
 #!/bin/sh
 # Skip during ImageBuilder / offline-root installs — UCI writes would
-# target the build host, not the device. The firewall include file is
-# already installed; UCI registration happens on first boot via the
-# guard below (which re-runs on every package install).
+# target the build host, not the device. For ImageBuilder images, the
+# /etc/uci-defaults/99-harmony-node-firewall script handles UCI
+# registration on first device boot instead.
 [ -n "$$IPKG_INSTROOT" ] && exit 0
 # Register firewall include if not already present.
 if [ -z "$$(uci -q get firewall.harmony_node)" ]; then

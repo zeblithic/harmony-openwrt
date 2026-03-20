@@ -12,10 +12,10 @@ case "$HARMONY_PORT" in
 esac
 
 # Allow Harmony mesh traffic on LAN (IPv4 + IPv6)
-iptables  -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT -m comment --comment "harmony-mesh-lan"
-ip6tables -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT -m comment --comment "harmony-mesh-lan"
+iptables  -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
+ip6tables -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
 
 # Block Harmony mesh traffic on WAN (defense-in-depth — WAN input is
 # typically DROP by default, but this guards against relaxed policies)
-iptables  -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP -m comment --comment "harmony-mesh-wan-block"
-ip6tables -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP -m comment --comment "harmony-mesh-wan-block"
+iptables  -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP
+ip6tables -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP

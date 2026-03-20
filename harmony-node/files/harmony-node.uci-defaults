@@ -1,0 +1,11 @@
+#!/bin/sh
+# Register the harmony-node firewall include on first boot.
+# This script runs once via /etc/uci-defaults/ and handles both
+# ImageBuilder-built firmware and live opkg installs.
+if [ -z "$(uci -q get firewall.harmony_node)" ]; then
+  uci set firewall.harmony_node=include
+  uci set firewall.harmony_node.path='/etc/harmony-node.firewall'
+  uci set firewall.harmony_node.reload='1'
+  uci commit firewall
+fi
+exit 0
