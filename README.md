@@ -105,7 +105,12 @@ The default `listen_address` (`0.0.0.0:4242`) binds to all interfaces including 
 On a border router, add firewall rules to restrict Reticulum traffic to the LAN zone.
 
 **These rules assume the WAN zone has a default `input DROP` policy (the OpenWRT
-factory default). Verify with `uci get firewall.@zone[1].input`.**
+factory default). Verify by finding the WAN zone index and checking its policy:**
+
+```bash
+uci show firewall | grep "name='wan'"   # find the zone index
+uci get firewall.@zone[N].input         # replace N with the index above
+```
 
 ```bash
 # Allow Harmony on LAN

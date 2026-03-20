@@ -73,6 +73,13 @@ define Package/harmony-node/install
 	install -d -m 0700 $(1)/etc/harmony
 endef
 
+define Package/harmony-node/prerm
+#!/bin/sh
+[ -f /etc/init.d/harmony-node ] && /etc/init.d/harmony-node disable
+[ -f /etc/init.d/harmony-node ] && /etc/init.d/harmony-node stop
+exit 0
+endef
+
 define Package/harmony-node/postrm
 #!/bin/sh
 # Only delete the identity key on full removal, not on upgrade.
