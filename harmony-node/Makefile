@@ -71,6 +71,9 @@ define Package/harmony-node/install
 	$(INSTALL_CONF) ./files/harmony-node.conf $(1)/etc/config/harmony-node
 
 	install -d -m 0700 $(1)/etc/harmony
+
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_DATA) ./files/harmony-node.keep $(1)/lib/upgrade/keep.d/harmony-node
 endef
 
 define Package/harmony-node/prerm
