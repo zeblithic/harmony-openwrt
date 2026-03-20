@@ -6,7 +6,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
-PKG_SOURCE_VERSION:=6f6121870a7e237bc5fdd05a78d8ddd4f4df3888
+PKG_SOURCE_VERSION:=2fc9f06fc1af424b1271e505677055016c18359c
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCE_SUBDIR).tar.gz
 # Git-sourced packages generate the tarball locally from the cloned repo,
@@ -69,6 +69,35 @@ define Package/harmony-node/install
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/harmony-node.conf $(1)/etc/config/harmony-node
+
+	install -d -m 0700 $(1)/etc/harmony
+
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_DATA) ./files/harmony-node.keep $(1)/lib/upgrade/keep.d/harmony-node
+endef
+
+define Package/harmony-node/prerm
+#!/bin/sh
+# On upgrade, only stop the service; preserve the boot-enable symlinks.
+# On full removal, disable first so the service doesn't try to start
+# after the binary is gone.
+case "$$1" in
+  upgrade) ;;
+  *) [ -f /etc/init.d/harmony-node ] && /etc/init.d/harmony-node disable ;;
+esac
+[ -f /etc/init.d/harmony-node ] && /etc/init.d/harmony-node stop
+exit 0
+endef
+
+define Package/harmony-node/postrm
+#!/bin/sh
+# Only delete the identity key on full removal, not on upgrade.
+# opkg passes "upgrade" as $$1 during upgrade cycles.
+case "$$1" in
+  upgrade) exit 0 ;;
+esac
+rm -rf /etc/harmony
+exit 0
 endef
 
 $(eval $(call BuildPackage,harmony-node))

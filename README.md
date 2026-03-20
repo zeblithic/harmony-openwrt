@@ -74,7 +74,9 @@ uci commit harmony-node
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `enabled` | `0` | Enable/disable the service |
+| `enabled` | `1` | Enable/disable the service |
+| `identity_file` | `/etc/harmony/identity.key` | Path to the node identity key file |
+| `listen_address` | `0.0.0.0:4242` | UDP listen address for Reticulum mesh packets |
 | `cache_capacity` | `256` | W-TinyLFU cache items (CLI default: 1024) |
 | `compute_budget` | `100000` | WASM compute fuel per tick |
 | `filter_broadcast_ticks` | `30` | Bloom filter broadcast interval |
@@ -96,6 +98,46 @@ Or edit `/etc/config/harmony-node` directly and restart:
 ```bash
 /etc/init.d/harmony-node restart
 ```
+
+## Firewall
+
+The default `listen_address` (`0.0.0.0:4242`) binds to all interfaces including WAN.
+On a border router, add firewall rules to restrict Reticulum traffic to the LAN zone.
+
+**These rules assume the WAN zone has a default `input DROP` policy (the OpenWRT
+factory default). Verify by finding the WAN zone index and checking its policy:**
+
+```bash
+uci show firewall | grep "name='wan'"   # find the zone index
+uci get firewall.@zone[N].input         # replace N with the index above
+```
+
+```bash
+# Allow Harmony on LAN
+uci add firewall rule
+uci set firewall.@rule[-1].name='Allow-Harmony-LAN'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].dest_port='4242'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='ACCEPT'
+
+# Explicitly block Harmony on WAN (needed if wan input policy != DROP)
+uci add firewall rule
+uci set firewall.@rule[-1].name='Block-Harmony-WAN'
+uci set firewall.@rule[-1].src='wan'
+uci set firewall.@rule[-1].dest_port='4242'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='DROP'
+
+uci commit firewall
+/etc/init.d/firewall reload
+```
+
+A dedicated firewall include is planned (see harmony-os-b9o).
+
+**Note:** Removing the `harmony-node` package also removes the identity key at
+`/etc/harmony/identity.key`. Back up the key before uninstalling if you plan to
+reinstall on the same device.
 
 ## BLAKE3 NEON Performance
 
