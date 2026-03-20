@@ -129,6 +129,15 @@ vi /etc/harmony-node.firewall
 /etc/init.d/firewall reload
 ```
 
+**Important:** Always apply changes via `/etc/init.d/firewall reload` — do not
+run the firewall script directly, as rules will accumulate without the flush
+that the firewall framework performs before sourcing includes.
+
+**Upgrade note:** `/etc/harmony-node.firewall` is a conffile — local edits are
+preserved across `opkg upgrade`. If a future package version ships changes to
+the firewall script (e.g., new chain names), `opkg` will keep your version and
+save the new one as `.opkg-new`. Review and merge manually if prompted.
+
 **Note:** Removing the `harmony-node` package also removes the identity key at
 `/etc/harmony/identity.key`. Back up the key before uninstalling if you plan to
 reinstall on the same device.
