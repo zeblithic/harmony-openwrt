@@ -50,7 +50,8 @@ git clone https://github.com/zeblithic/harmony.git
 cd harmony
 CARGO_FEATURE_NO_NEON=1 cargo build -p harmony-node \
     --target aarch64-unknown-linux-musl \
-    --profile release-cross
+    --profile release-cross \
+    --locked
 ```
 
 The binary is at `target/aarch64-unknown-linux-musl/release-cross/harmony`.
