@@ -48,7 +48,7 @@ To cross-compile harmony-node directly:
 ```bash
 git clone https://github.com/zeblithic/harmony.git
 cd harmony
-CARGO_FEATURE_NO_NEON=1 cargo build -p harmony-node \
+cargo build -p harmony-node --features no-neon \
     --target aarch64-unknown-linux-musl \
     --profile release-cross \
     --locked
@@ -99,9 +99,10 @@ Or edit `/etc/config/harmony-node` directly and restart:
 
 ## BLAKE3 NEON Performance
 
-By default, the build disables BLAKE3 NEON assembly (`CARGO_FEATURE_NO_NEON=1`)
-because cross-compilation requires a C cross-compiler for NEON intrinsics. This
-uses a pure Rust fallback (~3x slower hashing, negligible for mesh workloads).
+By default, the build uses `--features no-neon` which disables BLAKE3 NEON
+assembly. This avoids the need for a C cross-compiler (the `cc` crate requires
+one for NEON intrinsics). Pure Rust BLAKE3 is ~3x slower but negligible for
+mesh node workloads.
 
 To enable NEON (requires a musl cross-compiler):
 
@@ -113,8 +114,11 @@ To enable NEON (requires a musl cross-compiler):
 #   MUSL_CC=./staging_dir/toolchain-*/bin/aarch64-openwrt-linux-musl-gcc
 CC_aarch64_unknown_linux_musl=$MUSL_CC cargo build -p harmony-node \
     --target aarch64-unknown-linux-musl \
-    --profile release-cross
+    --profile release-cross \
+    --locked
 ```
+
+Note: omit `--features no-neon` when using a cross-compiler — NEON is enabled by default.
 
 ## License
 
