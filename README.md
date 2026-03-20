@@ -105,11 +105,18 @@ The package installs a firewall include (`/etc/harmony-node.firewall`) that auto
 - **Allows** inbound UDP 4242 on the **LAN** zone (mesh peer communication)
 - **Blocks** inbound UDP 4242 on the **WAN** zone (defense-in-depth)
 
-These rules are applied automatically on package install and on every firewall reload. No manual configuration is needed.
+These rules are applied automatically on package install and on every firewall reload.
+No manual configuration is needed. Both fw3 (iptables, OpenWRT <22.03) and fw4
+(nftables, OpenWRT >=22.03) are supported — the script auto-detects which is active.
 
 To verify the rules are active:
 
 ```bash
+# fw4 (nftables, OpenWRT 22.03+):
+nft list chain inet fw4 input_lan | grep 4242
+nft list chain inet fw4 input_wan | grep 4242
+
+# fw3 (iptables, older OpenWRT):
 iptables -L input_lan_rule -n | grep 4242
 iptables -L input_wan_rule -n | grep 4242
 ```

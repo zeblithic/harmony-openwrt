@@ -2,6 +2,11 @@
 # Register the harmony-node firewall include on first boot.
 # This script runs once via /etc/uci-defaults/ and handles both
 # ImageBuilder-built firmware and live opkg installs.
+#
+# Note: this script runs early in boot (before fw3/fw4 starts), so
+# it does NOT reload the firewall — the include takes effect when
+# the firewall service starts later in the boot sequence. For live
+# opkg installs, the postinst script handles the immediate reload.
 if [ -z "$(uci -q get firewall.harmony_node)" ]; then
   uci set firewall.harmony_node=include
   uci set firewall.harmony_node.path='/etc/harmony-node.firewall'
