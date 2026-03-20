@@ -74,6 +74,23 @@ define Package/harmony-node/install
 
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DATA) ./files/harmony-node.keep $(1)/lib/upgrade/keep.d/harmony-node
+
+	$(INSTALL_DIR) $(1)/etc
+	$(INSTALL_BIN) ./files/harmony-node.firewall $(1)/etc/harmony-node.firewall
+endef
+
+define Package/harmony-node/postinst
+#!/bin/sh
+# Register firewall include if not already present.
+if [ -z "$$(uci -q get firewall.harmony_node)" ]; then
+  uci set firewall.harmony_node=include
+  uci set firewall.harmony_node.path='/etc/harmony-node.firewall'
+  uci set firewall.harmony_node.reload='1'
+  uci commit firewall
+fi
+# Reload firewall to apply rules immediately.
+[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+exit 0
 endef
 
 define Package/harmony-node/prerm
@@ -91,12 +108,16 @@ endef
 
 define Package/harmony-node/postrm
 #!/bin/sh
-# Only delete the identity key on full removal, not on upgrade.
+# Only clean up on full removal, not on upgrade.
 # opkg passes "upgrade" as $$1 during upgrade cycles.
 case "$$1" in
   upgrade) exit 0 ;;
 esac
 rm -rf /etc/harmony
+# Remove firewall include from UCI.
+uci -q delete firewall.harmony_node
+uci commit firewall
+[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 exit 0
 endef
 
