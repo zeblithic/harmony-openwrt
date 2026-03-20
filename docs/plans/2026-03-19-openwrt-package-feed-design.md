@@ -12,6 +12,11 @@ Harmony nodes should run on commodity WiFi 7 routers (GL.iNet Filogic 880 and si
 
 A standalone OpenWRT package feed repo (`zeblithic/harmony-openwrt`) containing a package Makefile, procd init script, and UCI configuration for harmony-node. The package cross-compiles a static musl binary using Rust's bundled linker (no OpenWRT SDK dependency), installs it as a procd-supervised service, and is disabled by default until the event loop is wired.
 
+## Prerequisites
+
+- **Rust toolchain** with `aarch64-unknown-linux-musl` target installed
+- **harmony core PR #73** merged — provides `.cargo/config.toml` (rust-lld linker config) and `[profile.release-cross]` (strip + thin LTO)
+
 ## Target Hardware
 
 - **GL.iNet devices with MediaTek Filogic 880** (aarch64, Cortex-A53, 1-2 GB RAM)
@@ -51,26 +56,43 @@ make package/harmony-node/compile
 
 ## Package Makefile
 
-### Metadata
-
-| Field | Value |
-|-------|-------|
-| `PKG_NAME` | `harmony-node` |
-| `PKG_VERSION` | `0.1.0` (tracks harmony core workspace version) |
-| `PKG_RELEASE` | `1` |
-| `PKG_SOURCE_PROTO` | `git` |
-| `PKG_SOURCE_URL` | `https://github.com/zeblithic/harmony.git` |
-| `PKG_SOURCE_VERSION` | pinned commit hash |
-| `SECTION` | `net` |
-| `CATEGORY` | `Network` |
-| `DEPENDS` | none (static binary) |
-| `PKGARCH` | `aarch64_cortex-a53` |
-
-### Build
-
-The `Build/Compile` target invokes Cargo directly:
+### Complete Skeleton
 
 ```makefile
+include $(TOPDIR)/rules.mk
+
+PKG_NAME:=harmony-node
+PKG_VERSION:=0.1.0
+PKG_RELEASE:=1
+
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
+PKG_SOURCE_VERSION:=<pinned-commit-hash>
+PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
+PKG_SOURCE:=$(PKG_SOURCE_SUBDIR).tar.gz
+PKG_MIRROR_HASH:=skip
+
+PKG_BUILD_DEPENDS:=rust/host
+
+include $(INCLUDE_DIR)/package.mk
+
+define Package/harmony-node
+  SECTION:=net
+  CATEGORY:=Network
+  TITLE:=Harmony decentralized mesh node
+  URL:=https://github.com/zeblithic/harmony
+  DEPENDS:=@(aarch64)
+endef
+
+define Package/harmony-node/description
+  A decentralized mesh networking node for the Harmony protocol.
+  Statically linked binary — no runtime dependencies.
+endef
+
+define Package/harmony-node/conffiles
+/etc/config/harmony-node
+endef
+
 define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_FEATURE_NO_NEON=1 \
@@ -78,15 +100,7 @@ define Build/Compile
 		--target aarch64-unknown-linux-musl \
 		--profile release-cross
 endef
-```
 
-This uses the `.cargo/config.toml` from harmony core (merged in PR #73) which configures `rust-lld` as the linker with self-contained linking. No OpenWRT SDK C cross-compiler required.
-
-**BLAKE3 NEON tradeoff:** NEON assembly is disabled (`CARGO_FEATURE_NO_NEON=1`) because the `cc` crate requires a C cross-compiler for NEON intrinsics. Pure Rust BLAKE3 is ~3x slower but negligible for mesh node workloads (small-message hashing). If the OpenWRT SDK toolchain is available, `CARGO_FEATURE_NO_NEON` can be omitted and `CC_aarch64_unknown_linux_musl=$(TARGET_CC)` set instead — this is documented as an upgrade path.
-
-### Install
-
-```makefile
 define Package/harmony-node/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/target/aarch64-unknown-linux-musl/release-cross/harmony \
@@ -98,15 +112,21 @@ define Package/harmony-node/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/harmony-node.conf $(1)/etc/config/harmony-node
 endef
+
+$(eval $(call BuildPackage,harmony-node))
 ```
 
-Installed files:
+### Key Design Decisions
 
-| Path | Purpose |
-|------|---------|
-| `/usr/bin/harmony` | Static aarch64 binary (~3 MB) |
-| `/etc/init.d/harmony-node` | procd init script |
-| `/etc/config/harmony-node` | UCI defaults |
+**`DEPENDS:=@(aarch64)`** — Constrains package visibility to aarch64 targets only. No sub-architecture pinning — the static binary runs on any aarch64 OpenWRT device, not just Cortex-A53.
+
+**`conffiles`** — Declares `/etc/config/harmony-node` so `opkg upgrade` preserves user-modified configuration.
+
+**No stripping step** — The `release-cross` profile in harmony core sets `strip = true`, so Cargo handles stripping natively. The output binary is already ~3 MB stripped.
+
+**BLAKE3 NEON tradeoff:** NEON assembly is disabled (`CARGO_FEATURE_NO_NEON=1`) because the `cc` crate requires a C cross-compiler for NEON intrinsics. This is an env var read by blake3's `build.rs` to skip the NEON C/asm compilation. Pure Rust BLAKE3 is ~3x slower but negligible for mesh node workloads (small-message hashing).
+
+**Upgrade path:** If the OpenWRT SDK toolchain is available, omit `CARGO_FEATURE_NO_NEON` and set `CC_aarch64_unknown_linux_musl=$(TARGET_CC)` instead. This re-enables NEON for full BLAKE3 throughput. A future improvement is adding a `no-neon` passthrough feature to `harmony-crypto`'s Cargo.toml for a cleaner mechanism.
 
 ## procd Init Script
 
@@ -121,6 +141,8 @@ USE_PROCD=1
 start_service() {
     local enabled cache_capacity compute_budget
     local filter_broadcast_ticks filter_mutation_threshold
+    local encrypted_durable_persist encrypted_durable_announce
+    local no_public_ephemeral_announce
 
     config_load harmony-node
     config_get_bool enabled main enabled 0
@@ -130,6 +152,9 @@ start_service() {
     config_get compute_budget main compute_budget 100000
     config_get filter_broadcast_ticks main filter_broadcast_ticks 30
     config_get filter_mutation_threshold main filter_mutation_threshold 100
+    config_get_bool encrypted_durable_persist main encrypted_durable_persist 0
+    config_get_bool encrypted_durable_announce main encrypted_durable_announce 0
+    config_get_bool no_public_ephemeral_announce main no_public_ephemeral_announce 0
 
     procd_open_instance
     procd_set_param command /usr/bin/harmony run \
@@ -137,9 +162,21 @@ start_service() {
         --compute-budget "$compute_budget" \
         --filter-broadcast-ticks "$filter_broadcast_ticks" \
         --filter-mutation-threshold "$filter_mutation_threshold"
+
+    [ "$encrypted_durable_persist" -eq 1 ] && \
+        procd_append_param command --encrypted-durable-persist
+    [ "$encrypted_durable_announce" -eq 1 ] && \
+        procd_append_param command --encrypted-durable-announce
+    [ "$no_public_ephemeral_announce" -eq 1 ] && \
+        procd_append_param command --no-public-ephemeral-announce
+
     procd_set_param respawn
     procd_set_param stderr 1
     procd_close_instance
+}
+
+service_triggers() {
+    procd_add_reload_trigger "harmony-node"
 }
 ```
 
@@ -147,6 +184,7 @@ start_service() {
 - `enabled` defaults to `0` — service does not start until explicitly enabled
 - `procd_set_param respawn` — automatic restart on crash with default backoff
 - `procd_set_param stderr 1` — capture stderr to logd/syslog
+- `service_triggers()` — `uci commit harmony-node` automatically restarts the service
 
 ## UCI Configuration
 
@@ -157,10 +195,14 @@ config harmony-node 'main'
     option compute_budget '100000'
     option filter_broadcast_ticks '30'
     option filter_mutation_threshold '100'
+    option encrypted_durable_persist '0'
+    option encrypted_durable_announce '0'
+    option no_public_ephemeral_announce '0'
 ```
 
 - `enabled '0'` — disabled by default (event loop not yet wired)
-- `cache_capacity '256'` — lower than desktop default (1024) for router RAM constraints
+- `cache_capacity '256'` — intentionally lower than CLI default (1024) for router RAM constraints. Running `harmony run` directly on the router uses 1024; the service uses 256. This asymmetry is deliberate — the service default is tuned for constrained devices.
+- Content policy flags default to `0` (off), matching CLI defaults
 - Other values match `harmony run` CLI defaults
 
 ## README
@@ -186,6 +228,7 @@ Documents:
 - `/etc/init.d/harmony-node enable && /etc/init.d/harmony-node start`
 - Verify process runs under procd: `ps | grep harmony`
 - Verify restart on kill: `kill $(pidof harmony)`, confirm procd restarts it
+- Verify config reload: `uci set harmony-node.main.cache_capacity=512 && uci commit harmony-node`, confirm service restarts
 
 ## Future Extensions
 
@@ -197,9 +240,10 @@ Documents:
 | `harmony-relay` package | Lightweight relay-only node (no compute, no content storage) |
 | USB persistent storage | Mount detection, filesystem setup, key hierarchy persistence (harmony-os-qyp) |
 | LuCI integration | Web UI page for harmony-node configuration |
+| `no-neon` feature passthrough | Add Cargo feature to harmony-crypto for cleaner NEON disable mechanism |
 
 ## What Does NOT Change
 
-- harmony core codebase — no modifications needed (cross-compile config already merged)
+- harmony core codebase — no modifications needed (cross-compile config already merged in PR #73)
 - harmony-os — unaffected, separate deployment model
 - `harmony-node` CLI interface — init script wraps existing flags
