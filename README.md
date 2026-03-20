@@ -102,20 +102,37 @@ Or edit `/etc/config/harmony-node` directly and restart:
 ## Firewall
 
 The default `listen_address` (`0.0.0.0:4242`) binds to all interfaces including WAN.
-On a border router, add firewall rules to restrict Reticulum traffic to the LAN zone:
+On a border router, add firewall rules to restrict Reticulum traffic to the LAN zone.
+
+**These rules assume the WAN zone has a default `input DROP` policy (the OpenWRT
+factory default). Verify with `uci get firewall.@zone[1].input`.**
 
 ```bash
+# Allow Harmony on LAN
 uci add firewall rule
 uci set firewall.@rule[-1].name='Allow-Harmony-LAN'
 uci set firewall.@rule[-1].src='lan'
 uci set firewall.@rule[-1].dest_port='4242'
 uci set firewall.@rule[-1].proto='udp'
 uci set firewall.@rule[-1].target='ACCEPT'
+
+# Explicitly block Harmony on WAN (needed if wan input policy != DROP)
+uci add firewall rule
+uci set firewall.@rule[-1].name='Block-Harmony-WAN'
+uci set firewall.@rule[-1].src='wan'
+uci set firewall.@rule[-1].dest_port='4242'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='DROP'
+
 uci commit firewall
 /etc/init.d/firewall reload
 ```
 
 A dedicated firewall include is planned (see harmony-os-b9o).
+
+**Note:** Removing the `harmony-node` package also removes the identity key at
+`/etc/harmony/identity.key`. Back up the key before uninstalling if you plan to
+reinstall on the same device.
 
 ## BLAKE3 NEON Performance
 

@@ -70,7 +70,14 @@ define Package/harmony-node/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/harmony-node.conf $(1)/etc/config/harmony-node
 
-	$(INSTALL_DIR) $(1)/etc/harmony
+	install -d -m 0700 $(1)/etc/harmony
+endef
+
+define Package/harmony-node/postrm
+#!/bin/sh
+# Remove runtime-generated identity key on package removal.
+rm -rf /etc/harmony
+exit 0
 endef
 
 $(eval $(call BuildPackage,harmony-node))
