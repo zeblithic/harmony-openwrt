@@ -75,7 +75,11 @@ endef
 
 define Package/harmony-node/postrm
 #!/bin/sh
-# Remove runtime-generated identity key on package removal.
+# Only delete the identity key on full removal, not on upgrade.
+# opkg passes "upgrade" as $$1 during upgrade cycles.
+case "$$1" in
+  upgrade) exit 0 ;;
+esac
 rm -rf /etc/harmony
 exit 0
 endef
