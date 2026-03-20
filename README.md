@@ -99,6 +99,24 @@ Or edit `/etc/config/harmony-node` directly and restart:
 /etc/init.d/harmony-node restart
 ```
 
+## Firewall
+
+The default `listen_address` (`0.0.0.0:4242`) binds to all interfaces including WAN.
+On a border router, add firewall rules to restrict Reticulum traffic to the LAN zone:
+
+```bash
+uci add firewall rule
+uci set firewall.@rule[-1].name='Allow-Harmony-LAN'
+uci set firewall.@rule[-1].src='lan'
+uci set firewall.@rule[-1].dest_port='4242'
+uci set firewall.@rule[-1].proto='udp'
+uci set firewall.@rule[-1].target='ACCEPT'
+uci commit firewall
+/etc/init.d/firewall reload
+```
+
+A dedicated firewall include is planned (see harmony-os-b9o).
+
 ## BLAKE3 NEON Performance
 
 By default, the build uses `--features no-neon` which disables BLAKE3 NEON

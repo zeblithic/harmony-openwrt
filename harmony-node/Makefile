@@ -69,6 +69,8 @@ define Package/harmony-node/install
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/harmony-node.conf $(1)/etc/config/harmony-node
+
+	$(INSTALL_DIR) $(1)/etc/harmony
 endef
 
 $(eval $(call BuildPackage,harmony-node))
