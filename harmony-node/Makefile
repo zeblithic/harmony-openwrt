@@ -75,7 +75,13 @@ endef
 
 define Package/harmony-node/prerm
 #!/bin/sh
-[ -f /etc/init.d/harmony-node ] && /etc/init.d/harmony-node disable
+# On upgrade, only stop the service; preserve the boot-enable symlinks.
+# On full removal, disable first so the service doesn't try to start
+# after the binary is gone.
+case "$$1" in
+  upgrade) ;;
+  *) [ -f /etc/init.d/harmony-node ] && /etc/init.d/harmony-node disable ;;
+esac
 [ -f /etc/init.d/harmony-node ] && /etc/init.d/harmony-node stop
 exit 0
 endef
