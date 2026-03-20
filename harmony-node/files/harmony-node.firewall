@@ -2,12 +2,17 @@
 # Harmony mesh node firewall rules.
 # Installed as a firewall include — runs automatically on firewall reload.
 #
-# Allows inbound UDP 4242 on LAN for mesh peer communication.
-# Blocks inbound UDP 4242 on WAN to prevent external exposure.
+# Reads the port from UCI config so it tracks --listen-address changes.
+# Falls back to 4242 if not configured.
 
-# Allow Harmony mesh traffic on LAN
-iptables -A input_lan_rule -p udp --dport 4242 -j ACCEPT -m comment --comment "harmony-mesh-lan"
+HARMONY_PORT=$(uci -q get harmony-node.main.listen_address | sed 's/.*://')
+HARMONY_PORT=${HARMONY_PORT:-4242}
+
+# Allow Harmony mesh traffic on LAN (IPv4 + IPv6)
+iptables  -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT -m comment --comment "harmony-mesh-lan"
+ip6tables -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT -m comment --comment "harmony-mesh-lan"
 
 # Block Harmony mesh traffic on WAN (defense-in-depth — WAN input is
 # typically DROP by default, but this guards against relaxed policies)
-iptables -A input_wan_rule -p udp --dport 4242 -j DROP -m comment --comment "harmony-mesh-wan-block"
+iptables  -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP -m comment --comment "harmony-mesh-wan-block"
+ip6tables -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP -m comment --comment "harmony-mesh-wan-block"

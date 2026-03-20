@@ -34,6 +34,7 @@ endef
 
 define Package/harmony-node/conffiles
 /etc/config/harmony-node
+/etc/harmony-node.firewall
 endef
 
 # Fetch Cargo dependencies while network is available (Build/Prepare
@@ -115,8 +116,7 @@ case "$$1" in
 esac
 rm -rf /etc/harmony
 # Remove firewall include from UCI.
-uci -q delete firewall.harmony_node
-uci commit firewall
+uci -q delete firewall.harmony_node && uci commit firewall
 [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 exit 0
 endef
