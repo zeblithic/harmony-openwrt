@@ -102,11 +102,15 @@ By default, the build disables BLAKE3 NEON assembly (`CARGO_FEATURE_NO_NEON=1`)
 because cross-compilation requires a C cross-compiler for NEON intrinsics. This
 uses a pure Rust fallback (~3x slower hashing, negligible for mesh workloads).
 
-To enable NEON (requires OpenWRT SDK or a musl cross-compiler):
+To enable NEON (requires a musl cross-compiler):
 
 ```bash
-# In the OpenWRT buildroot, the SDK provides TARGET_CC:
-CC_aarch64_unknown_linux_musl=$(TARGET_CC) cargo build -p harmony-node \
+# Find your musl cross-compiler, e.g.:
+#   apt install gcc-aarch64-linux-gnu
+#   MUSL_CC=$(which aarch64-linux-gnu-gcc)
+# Or from the OpenWRT SDK:
+#   MUSL_CC=./staging_dir/toolchain-*/bin/aarch64-openwrt-linux-musl-gcc
+CC_aarch64_unknown_linux_musl=$MUSL_CC cargo build -p harmony-node \
     --target aarch64-unknown-linux-musl \
     --profile release-cross
 ```

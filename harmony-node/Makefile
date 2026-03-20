@@ -38,20 +38,25 @@ endef
 
 # Fetch Cargo dependencies while network is available (Build/Prepare
 # runs before the offline Build/Compile phase in OpenWRT's buildroot).
+# CARGO_HOME is isolated inside PKG_BUILD_DIR to avoid cache pollution
+# from parallel builds or stale crates in ~/.cargo.
 define Build/Prepare
 	$(call Build/Prepare/Default)
 	cd $(PKG_BUILD_DIR) && \
-	cargo fetch --target aarch64-unknown-linux-musl
+	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
+	cargo fetch --locked --target aarch64-unknown-linux-musl
 endef
 
 define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
+	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
 	CARGO_FEATURE_NO_NEON=1 \
 	CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$(TARGET_CC)" \
 	cargo build -p harmony-node \
 		--target aarch64-unknown-linux-musl \
 		--profile release-cross \
-		--offline
+		--offline \
+		--locked
 endef
 
 define Package/harmony-node/install
