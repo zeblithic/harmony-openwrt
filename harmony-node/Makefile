@@ -82,6 +82,11 @@ endef
 
 define Package/harmony-node/postinst
 #!/bin/sh
+# Skip during ImageBuilder / offline-root installs — UCI writes would
+# target the build host, not the device. The firewall include file is
+# already installed; UCI registration happens on first boot via the
+# guard below (which re-runs on every package install).
+[ -n "$$IPKG_INSTROOT" ] && exit 0
 # Register firewall include if not already present.
 if [ -z "$$(uci -q get firewall.harmony_node)" ]; then
   uci set firewall.harmony_node=include
@@ -109,6 +114,7 @@ endef
 
 define Package/harmony-node/postrm
 #!/bin/sh
+[ -n "$$IPKG_INSTROOT" ] && exit 0
 # Only clean up on full removal, not on upgrade.
 # opkg passes "upgrade" as $$1 during upgrade cycles.
 case "$$1" in
