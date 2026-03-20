@@ -6,9 +6,13 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
-PKG_SOURCE_VERSION:=d2bdde6
+PKG_SOURCE_VERSION:=d2bdde6ae91d5cc94f441cbf94e74a887b95f244
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCE_SUBDIR).tar.gz
+# Git-sourced packages generate the tarball locally from the cloned repo,
+# so the hash varies by git/tar version. Set to the SHA-256 of the
+# generated tarball after a first build:
+#   sha256sum $(DL_DIR)/harmony-node-0.1.0.tar.gz
 PKG_MIRROR_HASH:=skip
 
 PKG_BUILD_DEPENDS:=rust/host
@@ -35,6 +39,7 @@ endef
 define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_FEATURE_NO_NEON=1 \
+	CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$(TARGET_CC)" \
 	cargo build -p harmony-node \
 		--target aarch64-unknown-linux-musl \
 		--profile release-cross
