@@ -101,39 +101,42 @@ Or edit `/etc/config/harmony-node` directly and restart:
 
 ## Firewall
 
-The default `listen_address` (`0.0.0.0:4242`) binds to all interfaces including WAN.
-On a border router, add firewall rules to restrict Reticulum traffic to the LAN zone.
+The package installs a firewall include (`/etc/harmony-node.firewall`) that automatically:
+- **Allows** inbound UDP 4242 on the **LAN** zone (mesh peer communication)
+- **Blocks** inbound UDP 4242 on the **WAN** zone (defense-in-depth)
 
-**These rules assume the WAN zone has a default `input DROP` policy (the OpenWRT
-factory default). Verify by finding the WAN zone index and checking its policy:**
+These rules are applied automatically on package install and on every firewall reload.
+No manual configuration is needed. Both fw3 (iptables, OpenWRT <22.03) and fw4
+(nftables, OpenWRT >=22.03) are supported — the script auto-detects which is active.
+
+To verify the rules are active:
 
 ```bash
-uci show firewall | grep "name='wan'"   # find the zone index
-uci get firewall.@zone[N].input         # replace N with the index above
+# fw4 (nftables, OpenWRT 22.03+):
+nft list chain inet fw4 input_lan | grep 4242
+nft list chain inet fw4 input_wan | grep 4242
+
+# fw3 (iptables, older OpenWRT):
+iptables -L input_lan_rule -n | grep 4242
+iptables -L input_wan_rule -n | grep 4242
 ```
 
+To allow Harmony traffic on WAN (e.g., for cross-site mesh links):
+
 ```bash
-# Allow Harmony on LAN
-uci add firewall rule
-uci set firewall.@rule[-1].name='Allow-Harmony-LAN'
-uci set firewall.@rule[-1].src='lan'
-uci set firewall.@rule[-1].dest_port='4242'
-uci set firewall.@rule[-1].proto='udp'
-uci set firewall.@rule[-1].target='ACCEPT'
-
-# Explicitly block Harmony on WAN (needed if wan input policy != DROP)
-uci add firewall rule
-uci set firewall.@rule[-1].name='Block-Harmony-WAN'
-uci set firewall.@rule[-1].src='wan'
-uci set firewall.@rule[-1].dest_port='4242'
-uci set firewall.@rule[-1].proto='udp'
-uci set firewall.@rule[-1].target='DROP'
-
-uci commit firewall
+# Edit the firewall include to remove or comment out the WAN DROP rule
+vi /etc/harmony-node.firewall
 /etc/init.d/firewall reload
 ```
 
-A dedicated firewall include is planned (see harmony-os-b9o).
+**Important:** Always apply changes via `/etc/init.d/firewall reload` — do not
+run the firewall script directly, as rules will accumulate without the flush
+that the firewall framework performs before sourcing includes.
+
+**Upgrade note:** `/etc/harmony-node.firewall` is a conffile — local edits are
+preserved across `opkg upgrade`. If a future package version ships changes to
+the firewall script (e.g., new chain names), `opkg` will keep your version and
+save the new one as `.opkg-new`. Review and merge manually if prompted.
 
 **Note:** Removing the `harmony-node` package also removes the identity key at
 `/etc/harmony/identity.key`. Back up the key before uninstalling if you plan to

@@ -1,0 +1,29 @@
+#!/bin/sh
+# Harmony mesh node firewall rules.
+# Installed as a firewall include — runs automatically on firewall reload.
+#
+# Supports both fw3 (iptables, OpenWRT <22.03) and fw4 (nftables, >=22.03).
+# Reads the port from UCI config so it tracks --listen-address changes.
+# Falls back to 4242 if not configured.
+
+HARMONY_PORT=$(uci -q get harmony-node.main.listen_address | sed 's/.*://')
+# Validate: numeric and within valid port range; fall back to 4242.
+case "$HARMONY_PORT" in
+  ''|*[!0-9]*) HARMONY_PORT=4242 ;;
+  *)
+    [ "$HARMONY_PORT" -lt 1 ] 2>/dev/null && HARMONY_PORT=4242
+    [ "$HARMONY_PORT" -gt 65535 ] 2>/dev/null && HARMONY_PORT=4242
+    ;;
+esac
+
+if command -v nft >/dev/null 2>&1 && nft list table inet fw4 >/dev/null 2>&1; then
+  # fw4 (nftables) — OpenWRT 22.03+
+  nft add rule inet fw4 input_lan udp dport "$HARMONY_PORT" accept
+  nft add rule inet fw4 input_wan udp dport "$HARMONY_PORT" drop
+else
+  # fw3 (iptables) — OpenWRT <22.03
+  iptables  -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
+  ip6tables -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
+  iptables  -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP
+  ip6tables -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP
+fi
