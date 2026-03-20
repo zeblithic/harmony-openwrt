@@ -36,13 +36,22 @@ define Package/harmony-node/conffiles
 /etc/config/harmony-node
 endef
 
+# Fetch Cargo dependencies while network is available (Build/Prepare
+# runs before the offline Build/Compile phase in OpenWRT's buildroot).
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	cd $(PKG_BUILD_DIR) && \
+	cargo fetch --target aarch64-unknown-linux-musl
+endef
+
 define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_FEATURE_NO_NEON=1 \
 	CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$(TARGET_CC)" \
 	cargo build -p harmony-node \
 		--target aarch64-unknown-linux-musl \
-		--profile release-cross
+		--profile release-cross \
+		--offline
 endef
 
 define Package/harmony-node/install
