@@ -74,7 +74,9 @@ uci commit harmony-node
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `enabled` | `0` | Enable/disable the service |
+| `enabled` | `1` | Enable/disable the service |
+| `identity_file` | `/etc/harmony/identity.key` | Path to the node identity key file |
+| `listen_address` | `0.0.0.0:4242` | UDP listen address for Reticulum mesh packets |
 | `cache_capacity` | `256` | W-TinyLFU cache items (CLI default: 1024) |
 | `compute_budget` | `100000` | WASM compute fuel per tick |
 | `filter_broadcast_ticks` | `30` | Bloom filter broadcast interval |

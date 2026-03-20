@@ -6,7 +6,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
-PKG_SOURCE_VERSION:=6f6121870a7e237bc5fdd05a78d8ddd4f4df3888
+PKG_SOURCE_VERSION:=2fc9f06fc1af424b1271e505677055016c18359c
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCE_SUBDIR).tar.gz
 # Git-sourced packages generate the tarball locally from the cloned repo,
