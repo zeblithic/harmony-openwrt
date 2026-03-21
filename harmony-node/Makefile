@@ -30,6 +30,7 @@ endef
 define Package/harmony-node/description
   A decentralized mesh networking node for the Harmony protocol.
   Statically linked binary — no runtime dependencies.
+  For WiFi mesh: install wpad-mesh-wolfssl. Setup guide: https://github.com/zeblithic/harmony-openwrt/blob/main/docs/mesh-wifi-setup.md
 endef
 
 define Package/harmony-node/conffiles
