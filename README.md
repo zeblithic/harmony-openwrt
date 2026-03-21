@@ -99,6 +99,18 @@ Or edit `/etc/config/harmony-node` directly and restart:
 /etc/init.d/harmony-node restart
 ```
 
+## Mesh WiFi Setup
+
+For mesh networking between Harmony nodes over WiFi, configure an 802.11s mesh
+interface on the 5 GHz radio. See **[docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md)**
+for the complete guide covering:
+
+- 802.11s mesh point configuration with HWMP disabled
+- Concurrent AP + mesh on the same radio
+- SAE encryption, multicast rate optimization
+- Band planning for MT7996 tri-band hardware
+- Troubleshooting and known limitations
+
 ## Firewall
 
 The package installs a firewall include (`/etc/harmony-node.firewall`) that automatically:
