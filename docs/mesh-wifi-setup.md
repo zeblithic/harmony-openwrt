@@ -120,6 +120,16 @@ wifi reload
 
 ## Configuration Explained
 
+**Radio-level options** (in `config wifi-device`):
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `htmode 'HE80'` | Wi-Fi 6 HE, 80 MHz width | High throughput for mesh + AP on 5 GHz |
+| `he_bss_color '8'` | BSS coloring | Mitigates co-channel interference in dense deployments |
+| `he_su_beamformee '1'` | Beamforming | Improved signal quality to specific peers |
+
+**Interface-level options** (in `config wifi-iface`):
+
 | Option | Value | Why |
 |--------|-------|-----|
 | `mode 'mesh'` | 802.11s mesh point | Self-forming L2 peering, no coordinator needed |
@@ -128,7 +138,6 @@ wifi reload
 | `encryption 'sae'` | WPA3-SAE | Zero-knowledge password proof — secure mesh peering |
 | `mesh_fwding '0'` | **Disable HWMP** | Critical — Reticulum handles routing, not 802.11s |
 | `mcast_rate '24000'` | 24 Mbps broadcast floor | Prevents airtime starvation from low-rate broadcasts |
-| `he_bss_color '8'` | BSS coloring | Mitigates co-channel interference in dense deployments |
 
 ### Why disable mesh_fwding
 
@@ -159,18 +168,29 @@ reliable adjacencies instead of fragile fringe connections.
 
 ## Verify the mesh is working
 
-### Check the mesh interface is up
+**Note:** OpenWRT assigns kernel interface names automatically (e.g., `wlan1-1`),
+not the UCI section name (`harmony_mesh`) or `mesh0`. Find the actual name first:
+
+### Find the mesh interface name
 
 ```bash
-iw dev | grep -A5 mesh
+# Find the kernel interface name for the mesh VIF
+MESH_IF=$(iw dev | awk '/type mesh point/{getline; getline; print prev} {prev=$0}' | awk '/Interface/{print $2}')
+echo "Mesh interface: $MESH_IF"
 ```
 
-Should show the `harmony_mesh` interface in mesh point mode.
+Or simply look for `mesh point` in `iw dev` output:
+
+```bash
+iw dev
+```
+
+Look for an interface with `type mesh point` — note its `Interface` name (e.g., `wlan1-1`).
 
 ### Check for mesh peers
 
 ```bash
-iw mesh0 station dump | grep -E "Station|signal|mesh"
+iw dev "$MESH_IF" station dump | grep -E "Station|signal|mesh"
 ```
 
 Each neighboring Harmony node should appear as a station with signal strength.
@@ -211,13 +231,13 @@ Common causes:
 
 - Verify all nodes use the same `mesh_id` and `key`
 - Verify all nodes are on the same channel
-- Check signal strength: `iw mesh0 station dump`
+- Check signal strength: `iw dev "$MESH_IF" station dump`
 - Ensure `harmony-node` is running: `ps | grep harmony`
 
 ### Broadcast storms or high CPU
 
-- Verify `mesh_fwding '0'` is set
-- Check `mcast_rate '24000'` is applied: `iw mesh0 info | grep mcast`
+- Verify `mesh_fwding '0'` is set: `uci get wireless.harmony_mesh.mesh_fwding`
+- Check `mcast_rate '24000'` is applied: `grep mcast_rate /var/run/hostapd-phy*.conf`
 
 ## Known Limitations
 
@@ -228,6 +248,11 @@ Common causes:
 - **Channel selection** — DFS channels (52-144) may cause the mesh to go down
   during radar detection events. Use non-DFS channels (36-48, 149-165) for
   reliability.
+- **Single-hop L2 topology** — with `mesh_fwding '0'`, nodes not in direct RF
+  range have no L2 adjacency. This is intentional: Reticulum's routing layer
+  provides end-to-end connectivity across multi-hop paths. But L2-dependent
+  behavior (ARP, same-subnet broadcast discovery) only works between nodes
+  that can directly hear each other. Plan node placement accordingly.
 
 ## Security Notes
 
