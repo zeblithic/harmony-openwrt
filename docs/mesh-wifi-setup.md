@@ -68,7 +68,7 @@ config wifi-device 'radio1'
     option channel '36'
     option htmode 'HE80'
     option cell_density '0'
-    option he_bss_color '8'
+    # option he_bss_color '<unique 1-63 per node, or omit for auto>'
     option he_su_beamformee '1'
 
 # ── Existing AP Interface (keep this for client devices) ────────────
@@ -111,7 +111,8 @@ uci set wireless.harmony_mesh.mcast_rate='24000'
 
 # Enable HE features on the radio (if not already set)
 uci set wireless.radio1.htmode='HE80'
-uci set wireless.radio1.he_bss_color='8'
+# Set a unique BSS color per node (1-63) for spatial reuse, or omit for auto:
+# uci set wireless.radio1.he_bss_color='<unique per node>'
 uci set wireless.radio1.he_su_beamformee='1'
 
 uci commit wireless
@@ -125,7 +126,7 @@ wifi reload
 | Option | Value | Why |
 |--------|-------|-----|
 | `htmode 'HE80'` | Wi-Fi 6 HE, 80 MHz width | High throughput for mesh + AP on 5 GHz |
-| `he_bss_color '8'` | BSS coloring | Mitigates co-channel interference in dense deployments |
+| `he_bss_color` | Unique value 1-63 per node (or omit) | Spatial reuse — must differ between adjacent nodes |
 | `he_su_beamformee '1'` | Beamforming | Improved signal quality to specific peers |
 
 **Interface-level options** (in `config wifi-iface`):
@@ -175,7 +176,7 @@ not the UCI section name (`harmony_mesh`) or `mesh0`. Find the actual name first
 
 ```bash
 # Find the kernel interface name for the mesh VIF
-MESH_IF=$(iw dev | awk '/type mesh point/{getline; getline; print prev} {prev=$0}' | awk '/Interface/{print $2}')
+MESH_IF=$(iw dev | awk '/Interface/{iface=$2} /type mesh point/{print iface; exit}')
 echo "Mesh interface: $MESH_IF"
 ```
 
