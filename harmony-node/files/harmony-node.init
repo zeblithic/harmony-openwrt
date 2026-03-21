@@ -45,7 +45,8 @@ start_service() {
 		procd_append_param command --no-public-ephemeral-announce
 	[ "$no_mdns" -eq 1 ] && \
 		procd_append_param command --no-mdns
-	procd_append_param command --mdns-stale-timeout "$mdns_stale_timeout"
+	[ "$no_mdns" -ne 1 ] && \
+		procd_append_param command --mdns-stale-timeout "$mdns_stale_timeout"
 
 	procd_set_param respawn
 	procd_set_param stdout 1
