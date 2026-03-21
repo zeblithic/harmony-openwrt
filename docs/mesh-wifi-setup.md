@@ -38,10 +38,11 @@ Reboot after installing to ensure the new daemon is loaded.
 Confirm your 5 GHz radio supports mesh mode:
 
 ```bash
-iw phy phy1 info | grep -i mesh
+iw list | grep -i "mesh point"
 ```
 
-You should see `mesh point` in the supported interface modes.
+If you see at least one match, your hardware supports mesh mode. This scans all
+radios regardless of phy numbering (phy index varies by driver probe order).
 
 ## Configuration
 
