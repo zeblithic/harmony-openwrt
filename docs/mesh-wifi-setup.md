@@ -26,9 +26,12 @@ nodes. Each node discovers peers automatically — no central AP or coordinator 
 The default `wpad-basic-wolfssl` does not support 802.11s SAE encryption.
 Replace it:
 
+**WARNING:** Removing wpad kills all WiFi immediately. Run this over **Ethernet**,
+not a WiFi SSH session — you will be locked out before the install completes.
+
 ```bash
-opkg remove wpad-basic-wolfssl
-opkg install wpad-mesh-wolfssl
+# Run over Ethernet only!
+opkg remove wpad-basic-wolfssl && opkg install wpad-mesh-wolfssl
 ```
 
 Reboot after installing to ensure the new daemon is loaded.
