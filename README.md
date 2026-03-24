@@ -110,11 +110,11 @@ On first install, the package **automatically** configures an 802.11s mesh inter
 
 Any Harmony device within WiFi range automatically joins the mesh. No manual setup needed.
 
-**Security note:** The mesh VIF bridges to `br-lan` (`network='lan'`), so mesh peers
-have full LAN access — including the router admin UI, NAS, printers, etc. This is
-intentional for zero-config simplicity: harmony-node listens on `0.0.0.0` and Zenoh
-multicast scouting requires L2 adjacency. If your LAN has sensitive services, either
-secure them with authentication or move the mesh to an isolated network manually.
+**Network isolation:** The mesh VIF runs on a dedicated `br-harmony` bridge
+(`10.73.0.0/24`), isolated from `br-lan`. Mesh peers can reach harmony-node
+on the router (UDP 4242, 7446, 4434-4435) but cannot access LAN devices,
+the router admin UI, or forward traffic to WAN.
+
 For advanced configuration, troubleshooting, and band planning, see
 **[docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md)**.
 

@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=harmony-node
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
@@ -98,8 +98,8 @@ if [ -x /etc/uci-defaults/99-harmony-node-setup ]; then
   /etc/uci-defaults/99-harmony-node-setup || \
     logger -t "harmony-node" "WARNING: setup failed (uci commit error?); will retry on next boot"
 fi
-# Reload firewall to apply rules immediately (the uci-defaults script
-# only does wifi reload, not firewall reload).
+# Ensure firewall rules are active (idempotent — harmless if uci-defaults
+# already reloaded the firewall during setup).
 [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 exit 0
 endef
@@ -121,20 +121,14 @@ define Package/harmony-node/postrm
 #!/bin/sh
 [ -n "$$IPKG_INSTROOT" ] && exit 0
 # Only clean up on full removal, not on upgrade.
-# opkg passes "upgrade" as $$1 during upgrade cycles.
 case "$$1" in
   upgrade) exit 0 ;;
 esac
 rm -rf /etc/harmony
-# Remove firewall include from UCI.
-if uci -q delete firewall.harmony_node; then
-  if uci commit firewall; then
-    [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
-  else
-    logger -t "harmony-node" "WARNING: uci commit firewall failed during removal — harmony_node include may persist"
-  fi
-fi
-# Remove the HARMONY-MESH WiFi interface created by uci-defaults.
+# Remove all harmony UCI configuration.
+# Order: wireless first (disconnect mesh peers before changing firewall),
+# then firewall (zone + rules + include), then network/DHCP.
+# 1. Wireless — disconnect peers before any rule changes
 if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
   uci delete wireless.harmony_mesh
   if uci commit wireless; then
@@ -142,6 +136,34 @@ if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
   else
     logger -t "harmony-node" "WARNING: uci commit wireless failed during removal — harmony_mesh may persist"
   fi
+fi
+# 2. Firewall: include + zone + all port rules
+uci -q delete firewall.harmony_node
+uci -q delete firewall.harmony_reticulum
+uci -q delete firewall.harmony_zenoh
+uci -q delete firewall.harmony_iroh
+uci -q delete firewall.harmony_dns
+uci -q delete firewall.harmony_dhcp
+uci -q delete firewall.harmony_zone
+if uci commit firewall; then
+  [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+else
+  logger -t "harmony-node" "WARNING: uci commit firewall failed during removal — harmony firewall rules may persist"
+fi
+# 3. DHCP
+uci -q delete dhcp.harmony
+if uci commit dhcp; then
+  [ -x /etc/init.d/dnsmasq ] && /etc/init.d/dnsmasq reload
+else
+  logger -t "harmony-node" "WARNING: uci commit dhcp failed during removal — harmony DHCP config may persist"
+fi
+# 4. Network
+uci -q delete network.harmony
+uci -q delete network.br_harmony
+if uci commit network; then
+  [ -x /etc/init.d/network ] && /etc/init.d/network reload
+else
+  logger -t "harmony-node" "WARNING: uci commit network failed during removal — harmony network config may persist"
 fi
 exit 0
 endef
