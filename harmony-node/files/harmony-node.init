@@ -11,6 +11,7 @@ start_service() {
 	local encrypted_durable_persist encrypted_durable_announce
 	local no_public_ephemeral_announce
 	local no_mdns mdns_stale_timeout
+	local relay_url
 
 	config_load harmony-node
 	config_get_bool enabled main enabled 1
@@ -27,6 +28,7 @@ start_service() {
 	config_get_bool no_public_ephemeral_announce main no_public_ephemeral_announce 0
 	config_get_bool no_mdns main no_mdns 0
 	config_get mdns_stale_timeout main mdns_stale_timeout 60
+	config_get relay_url main relay_url ''
 
 	procd_open_instance
 	procd_set_param command /usr/bin/harmony run \
@@ -47,6 +49,15 @@ start_service() {
 		procd_append_param command --no-mdns
 	[ "$no_mdns" -ne 1 ] && \
 		procd_append_param command --mdns-stale-timeout "$mdns_stale_timeout"
+
+	[ -n "$relay_url" ] && \
+		procd_append_param command --relay-url "$relay_url"
+
+	# Tunnel peers (UCI list → multiple --add-tunnel-peer flags)
+	add_tunnel_peer_cb() {
+		procd_append_param command --add-tunnel-peer "$1"
+	}
+	config_list_foreach main tunnel_peer add_tunnel_peer_cb
 
 	procd_set_param respawn
 	procd_set_param stdout 1

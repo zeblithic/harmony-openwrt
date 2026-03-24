@@ -84,6 +84,8 @@ uci commit harmony-node
 | `encrypted_durable_persist` | `0` | Accept encrypted durable content |
 | `encrypted_durable_announce` | `0` | Announce encrypted durable content |
 | `no_public_ephemeral_announce` | `0` | Disable public ephemeral announcements |
+| `relay_url` | *(empty)* | iroh relay URL for NAT-traversal tunnels (enables tunnel accept) |
+| `tunnel_peer` | *(list)* | Tunnel peer specs: `<identity_hash>:<node_id>[@relay_url]` (repeatable) |
 
 Edit with `uci`:
 
