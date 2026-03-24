@@ -54,10 +54,10 @@ start_service() {
 		procd_append_param command --relay-url "$relay_url"
 
 	# Tunnel peers (UCI list → multiple --add-tunnel-peer flags)
-	add_tunnel_peer_cb() {
+	_harmony_add_tunnel_peer_cb() {
 		procd_append_param command --add-tunnel-peer "$1"
 	}
-	config_list_foreach main tunnel_peer add_tunnel_peer_cb
+	config_list_foreach main tunnel_peer _harmony_add_tunnel_peer_cb
 
 	procd_set_param respawn
 	procd_set_param stdout 1
