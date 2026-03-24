@@ -150,14 +150,20 @@ if uci commit firewall; then
 else
   logger -t "harmony-node" "WARNING: uci commit firewall failed during removal — harmony firewall rules may persist"
 fi
-# 3. Network + DHCP
+# 3. DHCP
 uci -q delete dhcp.harmony
+if uci commit dhcp; then
+  : # reloaded below with network
+else
+  logger -t "harmony-node" "WARNING: uci commit dhcp failed during removal — harmony DHCP config may persist"
+fi
+# 4. Network
 uci -q delete network.harmony
 uci -q delete network.br_harmony
-if uci commit dhcp && uci commit network; then
+if uci commit network; then
   [ -x /etc/init.d/network ] && /etc/init.d/network reload
 else
-  logger -t "harmony-node" "WARNING: uci commit network/dhcp failed during removal — harmony network config may persist"
+  logger -t "harmony-node" "WARNING: uci commit network failed during removal — harmony network config may persist"
 fi
 exit 0
 endef
