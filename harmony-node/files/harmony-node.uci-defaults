@@ -72,7 +72,7 @@ setup_harmony_network() {
     uci set firewall.harmony_reticulum.name='Allow-Harmony-Reticulum'
     uci set firewall.harmony_reticulum.src='harmony'
     uci set firewall.harmony_reticulum.dest_port="$RET_PORT"
-    uci set firewall.harmony_reticulum.proto='tcpudp'
+    uci set firewall.harmony_reticulum.proto='udp'
     uci set firewall.harmony_reticulum.target='ACCEPT'
     CREATED_FW="$CREATED_FW reticulum"
   fi
@@ -83,7 +83,7 @@ setup_harmony_network() {
     uci set firewall.harmony_zenoh.name='Allow-Harmony-Zenoh'
     uci set firewall.harmony_zenoh.src='harmony'
     uci set firewall.harmony_zenoh.dest_port='7446'
-    uci set firewall.harmony_zenoh.proto='tcpudp'
+    uci set firewall.harmony_zenoh.proto='udp'
     uci set firewall.harmony_zenoh.target='ACCEPT'
     CREATED_FW="$CREATED_FW zenoh"
   fi
@@ -94,7 +94,7 @@ setup_harmony_network() {
     uci set firewall.harmony_iroh.name='Allow-Harmony-Iroh'
     uci set firewall.harmony_iroh.src='harmony'
     uci set firewall.harmony_iroh.dest_port='4434-4435'
-    uci set firewall.harmony_iroh.proto='tcpudp'
+    uci set firewall.harmony_iroh.proto='udp'
     uci set firewall.harmony_iroh.target='ACCEPT'
     CREATED_FW="$CREATED_FW iroh"
   fi
