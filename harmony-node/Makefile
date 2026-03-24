@@ -32,8 +32,10 @@ else
   RUST_FEATURES:=
 endif
 
-# Cargo linker env var: CARGO_TARGET_<UPPER_TRIPLE>_LINKER
+# Cargo linker env var: CARGO_TARGET_<UPPER_TRIPLE>_LINKER (uppercase)
 RUST_TARGET_UPPER:=$(shell echo '$(RUST_TARGET)' | tr 'a-z-' 'A-Z_')
+# cc-crate compiler env var: CC_<lower_triple> (lowercase with underscores)
+RUST_TARGET_LOWER_US:=$(subst -,_,$(RUST_TARGET))
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -72,7 +74,7 @@ define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
 	CARGO_TARGET_$(RUST_TARGET_UPPER)_LINKER="$(TARGET_CC)" \
-	CC_$(RUST_TARGET_UPPER)="$(TARGET_CC)" \
+	CC_$(RUST_TARGET_LOWER_US)="$(TARGET_CC)" \
 	cargo build -p harmony-node \
 		$(RUST_FEATURES) \
 		--target $(RUST_TARGET) \
