@@ -178,22 +178,26 @@ save the new one as `.opkg-new`. Review and merge manually if prompted.
 `/etc/harmony/identity.key`. Back up the key before uninstalling if you plan to
 reinstall on the same device.
 
-## BLAKE3 NEON Performance
+## BLAKE3 SIMD Performance
 
-By default, the build uses `--features no-neon` which disables BLAKE3 NEON
-assembly. This avoids the need for a C cross-compiler (the `cc` crate requires
-one for NEON intrinsics). Pure Rust BLAKE3 is ~3x slower but negligible for
-mesh node workloads.
+BLAKE3 uses architecture-specific SIMD assembly for performance. The build
+behavior differs by target:
 
-To enable NEON (requires a musl cross-compiler):
+- **aarch64:** Uses `--features no-neon` which disables NEON assembly, falling
+  back to pure Rust. This avoids needing a C cross-compiler for standalone
+  builds. ~3x slower but negligible for mesh node workloads. The OpenWRT SDK
+  build always has `$(TARGET_CC)` available, but the feature flag is used for
+  consistency with standalone builds.
+
+- **x86_64:** No feature flag — SSE2/SSE4.1/AVX2 assembly compiles using
+  `$(TARGET_CC)` from the OpenWRT SDK (always available). For standalone builds
+  without an SDK, a musl C cross-compiler is required.
+
+To enable NEON on aarch64 standalone builds (requires a musl cross-compiler):
 
 ```bash
-# Find your musl cross-compiler, e.g.:
-#   apt install gcc-aarch64-linux-gnu
-#   MUSL_CC=$(which aarch64-linux-gnu-gcc)
-# Or from the OpenWRT SDK:
-#   MUSL_CC=./staging_dir/toolchain-*/bin/aarch64-openwrt-linux-musl-gcc
-CC_aarch64_unknown_linux_musl=$MUSL_CC cargo build -p harmony-node \
+CC_aarch64_unknown_linux_musl=$(which aarch64-linux-gnu-gcc) \
+cargo build -p harmony-node \
     --target aarch64-unknown-linux-musl \
     --profile release-cross \
     --locked

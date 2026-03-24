@@ -17,14 +17,19 @@ PKG_MIRROR_HASH:=skip
 
 PKG_BUILD_DEPENDS:=rust/host
 
-# Map OpenWRT arch to Rust target triple.
+# Map OpenWRT arch to Rust target triple and BLAKE3 feature flags.
+# aarch64: --features no-neon disables NEON assembly (avoids cc crate for NEON intrinsics)
+# x86_64: no feature flag — SSE2/AVX2 assembly compiles fine with $(TARGET_CC) from SDK
 ifeq ($(ARCH),aarch64)
   RUST_TARGET:=aarch64-unknown-linux-musl
+  RUST_FEATURES:=--features no-neon
 else ifeq ($(ARCH),x86_64)
   RUST_TARGET:=x86_64-unknown-linux-musl
+  RUST_FEATURES:=
 else
   # Sentinel — Build/Compile will error if this package is actually selected.
   RUST_TARGET:=unsupported-$(ARCH)
+  RUST_FEATURES:=
 endif
 
 # Cargo linker env var: CARGO_TARGET_<UPPER_TRIPLE>_LINKER
@@ -56,6 +61,7 @@ endef
 # CARGO_HOME is isolated inside PKG_BUILD_DIR to avoid cache pollution
 # from parallel builds or stale crates in ~/.cargo.
 define Build/Prepare
+	$(if $(findstring unsupported,$(RUST_TARGET)),$(error Unsupported architecture: $(ARCH). Supported: aarch64, x86_64))
 	$(call Build/Prepare/Default)
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
@@ -63,12 +69,11 @@ define Build/Prepare
 endef
 
 define Build/Compile
-	$(if $(findstring unsupported,$(RUST_TARGET)),$(error Unsupported architecture: $(ARCH). Supported: aarch64, x86_64))
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
 	CARGO_TARGET_$(RUST_TARGET_UPPER)_LINKER="$(TARGET_CC)" \
 	cargo build -p harmony-node \
-		--features no-neon \
+		$(RUST_FEATURES) \
 		--target $(RUST_TARGET) \
 		--profile release-cross \
 		--offline \
