@@ -120,7 +120,7 @@ opens Harmony protocol ports on **both LAN and WAN**:
 
 - **UDP 4242** — Reticulum mesh packets
 - **UDP 7446** — Zenoh multicast scouting / peer discovery
-- **UDP 4433-4435** — iroh-net QUIC tunnels
+- **UDP 4434-4435** — iroh-net QUIC tunnels (4433 excluded — IANA HTTPS-alt overlap)
 
 Harmony provides its own E2E encryption (Reticulum + ML-KEM + ML-DSA), so there is
 no meaningful trust difference between LAN and WAN for Harmony traffic. Non-Harmony

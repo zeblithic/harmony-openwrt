@@ -47,7 +47,8 @@ fi
 if [ -z "$MESH_RADIO" ]; then
   for radio in $(uci -q show wireless | grep '=wifi-device$' | cut -d. -f2 | cut -d= -f1); do
     band="$(uci -q get wireless."$radio".band)"
-    if [ "$band" = "5g" ]; then
+    disabled="$(uci -q get wireless."$radio".disabled)"
+    if [ "$band" = "5g" ] && [ "$disabled" != "1" ]; then
       MESH_RADIO="$radio"
       logger -t "$TAG" "auto-detected 5GHz radio: $MESH_RADIO"
       break
@@ -86,10 +87,9 @@ case "$current_htmode" in
     ;;
 esac
 
-# Enable beamformee if not already set
-if [ -z "$(uci -q get wireless."$MESH_RADIO".he_su_beamformee)" ]; then
-  uci set wireless."$MESH_RADIO".he_su_beamformee='1'
-fi
+# Note: beamformee is enabled by default on MT7996 when HE80 is set.
+# The he_su_beamformee UCI option is not portable across drivers, so
+# we rely on the hardware default rather than setting it explicitly.
 
 uci commit wireless
 logger -t "$TAG" "HARMONY-MESH configured on $MESH_RADIO — mesh will activate on next wifi reload"

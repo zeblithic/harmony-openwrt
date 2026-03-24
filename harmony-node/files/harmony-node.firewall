@@ -12,7 +12,8 @@
 # Ports:
 #   UDP 4242       — Reticulum mesh packets
 #   UDP 7446       — Zenoh multicast scouting / peer discovery
-#   UDP 4433-4435  — iroh-net QUIC tunnels (relay + direct)
+#   UDP 4434-4435  — iroh-net QUIC tunnels (relay + direct)
+#                  Note: 4433 is excluded (IANA HTTPS-alt/QUIC overlap)
 
 # Read the Reticulum port from UCI config; fall back to 4242.
 HARMONY_PORT=$(uci -q get harmony-node.main.listen_address | sed 's/.*://')
@@ -35,8 +36,8 @@ if command -v nft >/dev/null 2>&1 && nft list table inet fw4 >/dev/null 2>&1; th
   nft add rule inet fw4 input_wan udp dport 7446 accept
 
   # iroh-net QUIC tunnels — both LAN and WAN
-  nft add rule inet fw4 input_lan udp dport 4433-4435 accept
-  nft add rule inet fw4 input_wan udp dport 4433-4435 accept
+  nft add rule inet fw4 input_lan udp dport 4434-4435 accept
+  nft add rule inet fw4 input_wan udp dport 4434-4435 accept
 else
   # ── fw3 (iptables) — OpenWRT <22.03 ────────────────────────────────
   # Reticulum — both LAN and WAN

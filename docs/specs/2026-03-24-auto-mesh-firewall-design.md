@@ -73,7 +73,7 @@ The `99-harmony-node-setup` script runs on first boot after install:
    wireless.harmony_mesh.mesh_fwding='0'
    wireless.harmony_mesh.mcast_rate='24000'
    ```
-6. Set radio HE features: `htmode='HE80'`, `he_su_beamformee='1'`
+6. Set radio HE features: `htmode='HE80'` (beamformee enabled by default on HE hardware)
 7. `uci commit wireless`
 8. Trigger `wifi reload` if wireless subsystem is available
 
@@ -84,7 +84,7 @@ Replace the current script (which blocks WAN, allows LAN) with:
 **Allowed on both LAN and WAN:**
 - UDP 4242 (Reticulum mesh packets)
 - UDP 7446 (Zenoh multicast scouting)
-- UDP 4433-4435 (iroh-net QUIC tunnels)
+- UDP 4434-4435 (iroh-net QUIC tunnels)
 
 **Implementation:** The script auto-detects fw3 (iptables) vs fw4 (nftables)
 and applies the rules to both zones. Non-Harmony traffic remains firewalled
