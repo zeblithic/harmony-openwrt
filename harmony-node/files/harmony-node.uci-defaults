@@ -11,6 +11,125 @@
 
 TAG="harmony-node"
 
+# ── Harmony network/bridge/DHCP/firewall zone setup ───────────────────────
+setup_harmony_network() {
+  # Determine the Reticulum listen port from UCI (same pattern as harmony-node.firewall).
+  RET_PORT="$(uci -q get harmony-node.main.listen_address | sed 's/.*://')"
+  [ -z "$RET_PORT" ] && RET_PORT="4242"
+
+  CREATED=""
+
+  # Bridge device br-harmony
+  if [ -z "$(uci -q get network.br_harmony)" ]; then
+    uci set network.br_harmony=device
+    uci set network.br_harmony.type='bridge'
+    uci set network.br_harmony.name='br-harmony'
+    CREATED="$CREATED br_harmony-device"
+  fi
+
+  # Network interface harmony
+  if [ -z "$(uci -q get network.harmony)" ]; then
+    uci set network.harmony=interface
+    uci set network.harmony.device='br-harmony'
+    uci set network.harmony.proto='static'
+    uci set network.harmony.ipaddr='10.73.0.1'
+    uci set network.harmony.netmask='255.255.255.0'
+    CREATED="$CREATED harmony-interface"
+  fi
+
+  # DHCP pool harmony
+  if [ -z "$(uci -q get dhcp.harmony)" ]; then
+    uci set dhcp.harmony=dhcp
+    uci set dhcp.harmony.interface='harmony'
+    uci set dhcp.harmony.start='100'
+    uci set dhcp.harmony.limit='100'
+    uci set dhcp.harmony.leasetime='1h'
+    CREATED="$CREATED harmony-dhcp"
+  fi
+
+  # Firewall zone harmony_zone
+  if [ -z "$(uci -q get firewall.harmony_zone)" ]; then
+    uci set firewall.harmony_zone=zone
+    uci set firewall.harmony_zone.name='harmony'
+    uci set firewall.harmony_zone.network='harmony'
+    uci set firewall.harmony_zone.input='REJECT'
+    uci set firewall.harmony_zone.output='ACCEPT'
+    uci set firewall.harmony_zone.forward='REJECT'
+    CREATED="$CREATED harmony-zone"
+  fi
+
+  # Firewall rule: Reticulum (dynamic port, TCP+UDP)
+  if [ -z "$(uci -q get firewall.harmony_reticulum)" ]; then
+    uci set firewall.harmony_reticulum=rule
+    uci set firewall.harmony_reticulum.name='Allow-Harmony-Reticulum'
+    uci set firewall.harmony_reticulum.src='harmony'
+    uci set firewall.harmony_reticulum.dest_port="$RET_PORT"
+    uci set firewall.harmony_reticulum.proto='tcpudp'
+    uci set firewall.harmony_reticulum.target='ACCEPT'
+    CREATED="$CREATED harmony-reticulum-rule"
+  fi
+
+  # Firewall rule: Zenoh (7446, TCP+UDP)
+  if [ -z "$(uci -q get firewall.harmony_zenoh)" ]; then
+    uci set firewall.harmony_zenoh=rule
+    uci set firewall.harmony_zenoh.name='Allow-Harmony-Zenoh'
+    uci set firewall.harmony_zenoh.src='harmony'
+    uci set firewall.harmony_zenoh.dest_port='7446'
+    uci set firewall.harmony_zenoh.proto='tcpudp'
+    uci set firewall.harmony_zenoh.target='ACCEPT'
+    CREATED="$CREATED harmony-zenoh-rule"
+  fi
+
+  # Firewall rule: iroh (4434-4435, TCP+UDP)
+  if [ -z "$(uci -q get firewall.harmony_iroh)" ]; then
+    uci set firewall.harmony_iroh=rule
+    uci set firewall.harmony_iroh.name='Allow-Harmony-Iroh'
+    uci set firewall.harmony_iroh.src='harmony'
+    uci set firewall.harmony_iroh.dest_port='4434-4435'
+    uci set firewall.harmony_iroh.proto='tcpudp'
+    uci set firewall.harmony_iroh.target='ACCEPT'
+    CREATED="$CREATED harmony-iroh-rule"
+  fi
+
+  # Firewall rule: DNS (53, TCP+UDP)
+  if [ -z "$(uci -q get firewall.harmony_dns)" ]; then
+    uci set firewall.harmony_dns=rule
+    uci set firewall.harmony_dns.name='Allow-Harmony-DNS'
+    uci set firewall.harmony_dns.src='harmony'
+    uci set firewall.harmony_dns.dest_port='53'
+    uci set firewall.harmony_dns.proto='tcpudp'
+    uci set firewall.harmony_dns.target='ACCEPT'
+    CREATED="$CREATED harmony-dns-rule"
+  fi
+
+  # Firewall rule: DHCP (67, UDP)
+  if [ -z "$(uci -q get firewall.harmony_dhcp_fw)" ]; then
+    uci set firewall.harmony_dhcp_fw=rule
+    uci set firewall.harmony_dhcp_fw.name='Allow-Harmony-DHCP'
+    uci set firewall.harmony_dhcp_fw.src='harmony'
+    uci set firewall.harmony_dhcp_fw.dest_port='67'
+    uci set firewall.harmony_dhcp_fw.proto='udp'
+    uci set firewall.harmony_dhcp_fw.target='ACCEPT'
+    CREATED="$CREATED harmony-dhcp-rule"
+  fi
+
+  if [ -n "$CREATED" ]; then
+    if ! uci commit network; then
+      logger -t "$TAG" "ERROR: uci commit network failed during harmony network setup"
+      return 1
+    fi
+    if ! uci commit dhcp; then
+      logger -t "$TAG" "ERROR: uci commit dhcp failed during harmony network setup"
+      return 1
+    fi
+    if ! uci commit firewall; then
+      logger -t "$TAG" "ERROR: uci commit firewall failed during harmony network setup"
+      return 1
+    fi
+    logger -t "$TAG" "harmony network setup created:$CREATED"
+  fi
+}
+
 # ── Firewall include registration ─────────────────────────────────────────
 if [ -z "$(uci -q get firewall.harmony_node)" ]; then
   uci set firewall.harmony_node=include
@@ -109,13 +228,15 @@ if [ -n "$WPAD_BASIC" ]; then
   exit 0
 fi
 
+setup_harmony_network
+
 # ── Create the mesh VIF ───────────────────────────────────────────────────
 logger -t "$TAG" "configuring HARMONY-MESH on $MESH_RADIO"
 
 uci set wireless.harmony_mesh=wifi-iface
 uci set wireless.harmony_mesh.device="$MESH_RADIO"
 uci set wireless.harmony_mesh.mode='mesh'
-uci set wireless.harmony_mesh.network='lan'
+uci set wireless.harmony_mesh.network='harmony'
 uci set wireless.harmony_mesh.mesh_id='HARMONY-MESH'
 uci set wireless.harmony_mesh.encryption='sae'
 uci set wireless.harmony_mesh.key='ZEBLITHIC'
@@ -154,5 +275,10 @@ if [ -x /sbin/wifi ]; then
     logger -t "$TAG" "WARNING: wifi reload failed — mesh will activate on next boot. See /tmp/harmony-wifi-reload.err"
   fi
 fi
+
+# Reload network and firewall for the harmony zone/bridge.
+# network reload also triggers dnsmasq to pick up the new DHCP pool via procd.
+[ -x /etc/init.d/network ] && /etc/init.d/network reload
+[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 
 exit 0
