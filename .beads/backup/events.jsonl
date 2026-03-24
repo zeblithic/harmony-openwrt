@@ -21,3 +21,5 @@
 {"actor":"Jake Englund","comment":null,"created_at":"2026-03-23T20:56:04Z","event_type":"closed","id":21,"issue_id":"harmony-openwrt-im5","new_value":"Auto-join HARMONY-MESH implemented: uci-defaults auto-detects 5GHz radio, creates mesh VIF with well-known credentials and optimized tunings.","old_value":""}
 {"actor":"Jake Englund","comment":null,"created_at":"2026-03-23T20:56:04Z","event_type":"closed","id":22,"issue_id":"harmony-openwrt-4jl","new_value":"Firewall-free WAN implemented: UDP 4242 (Reticulum), 7446 (Zenoh), 4433-4435 (iroh-net) open on both LAN and WAN zones.","old_value":""}
 {"actor":"Jake Englund","comment":null,"created_at":"2026-03-23T22:17:14Z","event_type":"created","id":23,"issue_id":"harmony-openwrt-979","new_value":"","old_value":""}
+{"actor":"Jake Englund","comment":null,"created_at":"2026-03-23T23:08:34Z","event_type":"closed","id":24,"issue_id":"harmony-openwrt-im5","new_value":"Merged in PR #6","old_value":""}
+{"actor":"Jake Englund","comment":null,"created_at":"2026-03-23T23:08:34Z","event_type":"closed","id":25,"issue_id":"harmony-openwrt-4jl","new_value":"Merged in PR #6","old_value":""}
