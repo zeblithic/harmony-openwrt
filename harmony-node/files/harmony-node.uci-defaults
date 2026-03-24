@@ -36,6 +36,9 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
         wifi reload 2>/tmp/harmony-wifi-reload.err || \
           logger -t "$TAG" "WARNING: wifi reload failed after backfill — will apply on next boot"
       fi
+    else
+      logger -t "$TAG" "ERROR: uci commit wireless failed during backfill — multicast_to_unicast not applied"
+      exit 1
     fi
   fi
   exit 0

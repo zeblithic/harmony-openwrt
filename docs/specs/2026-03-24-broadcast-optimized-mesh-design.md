@@ -52,18 +52,21 @@ both efficient and appropriate.
 
 ## Upgrade Path
 
-The uci-defaults script skips mesh VIF creation if `wireless.harmony_mesh`
-already exists. Installations from PR #6 will not automatically gain
-`multicast_to_unicast='0'`. Existing users apply it manually:
+On package upgrade (PKG_RELEASE 1 → 2), the `postinst` script re-runs
+`99-harmony-node-setup`. The script detects `wireless.harmony_mesh` is
+already present, checks for the missing `multicast_to_unicast` option, and
+automatically backfills it with `uci set` + `uci commit wireless` +
+`wifi reload`. No manual steps are required for existing installs.
+
+If auto-backfill fails (e.g. commit error), the script exits non-zero
+(preserving itself for retry on next boot) and logs an error. As a
+fallback, apply manually:
 
 ```
 uci set wireless.harmony_mesh.multicast_to_unicast='0'
 uci commit wireless
 wifi reload
 ```
-
-This is acceptable for pre-alpha (only one user). Document the command in
-the mesh-wifi-setup guide for completeness.
 
 ## Docs Cleanup
 
