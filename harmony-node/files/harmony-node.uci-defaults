@@ -13,9 +13,15 @@ TAG="harmony-node"
 
 # ── Harmony network/bridge/DHCP/firewall zone setup ───────────────────────
 setup_harmony_network() {
-  # Determine the Reticulum listen port from UCI (same pattern as harmony-node.firewall).
-  RET_PORT="$(uci -q get harmony-node.main.listen_address | sed 's/.*://')"
-  [ -z "$RET_PORT" ] && RET_PORT="4242"
+  # Read the Reticulum port from UCI config; fall back to 4242.
+  RET_PORT=$(uci -q get harmony-node.main.listen_address | sed 's/.*://')
+  case "$RET_PORT" in
+    ''|*[!0-9]*) RET_PORT=4242 ;;
+    *)
+      [ "$RET_PORT" -lt 1 ] 2>/dev/null && RET_PORT=4242
+      [ "$RET_PORT" -gt 65535 ] 2>/dev/null && RET_PORT=4242
+      ;;
+  esac
 
   CREATED=""
 
@@ -186,10 +192,11 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
     if uci set wireless.harmony_mesh.network='harmony'; then
       if uci commit wireless; then
         logger -t "$TAG" "migrated wireless.harmony_mesh.network to harmony"
-        [ -x /sbin/wifi ] && wifi reload 2>/tmp/harmony-wifi-reload.err
-        # network reload also triggers dnsmasq for the new DHCP pool via procd.
+        # Reload order: network first (creates br-harmony in netifd),
+        # then firewall (loads zone rules), then wifi (attaches VIF to bridge).
         [ -x /etc/init.d/network ] && /etc/init.d/network reload
         [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+        [ -x /sbin/wifi ] && wifi reload 2>/tmp/harmony-wifi-reload.err
       else
         logger -t "$TAG" "ERROR: uci commit wireless failed during isolation backfill"
         exit 1
@@ -293,9 +300,13 @@ if ! uci commit wireless; then
 fi
 logger -t "$TAG" "HARMONY-MESH configured on $MESH_RADIO"
 
-# Trigger wifi reload if the wireless subsystem is available.
-# During early boot (ImageBuilder), wifi may not be ready yet — the
-# committed config takes effect when wireless starts normally.
+# Reload order: network first (creates br-harmony in netifd and triggers
+# dnsmasq for the new DHCP pool via procd), then firewall (loads zone rules),
+# then wifi (attaches mesh VIF to the bridge).
+# During early boot (ImageBuilder), services may not be ready yet — the
+# committed config takes effect when they start normally.
+[ -x /etc/init.d/network ] && /etc/init.d/network reload
+[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 if [ -x /sbin/wifi ]; then
   if wifi reload 2>/tmp/harmony-wifi-reload.err; then
     logger -t "$TAG" "wifi reload succeeded — mesh active"
@@ -303,10 +314,5 @@ if [ -x /sbin/wifi ]; then
     logger -t "$TAG" "WARNING: wifi reload failed — mesh will activate on next boot. See /tmp/harmony-wifi-reload.err"
   fi
 fi
-
-# Reload network and firewall for the harmony zone/bridge.
-# network reload also triggers dnsmasq to pick up the new DHCP pool via procd.
-[ -x /etc/init.d/network ] && /etc/init.d/network reload
-[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 
 exit 0
