@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=harmony-node
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
@@ -121,20 +121,22 @@ define Package/harmony-node/postrm
 #!/bin/sh
 [ -n "$$IPKG_INSTROOT" ] && exit 0
 # Only clean up on full removal, not on upgrade.
-# opkg passes "upgrade" as $$1 during upgrade cycles.
 case "$$1" in
   upgrade) exit 0 ;;
 esac
 rm -rf /etc/harmony
-# Remove firewall include from UCI.
-if uci -q delete firewall.harmony_node; then
-  if uci commit firewall; then
-    [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
-  else
-    logger -t "harmony-node" "WARNING: uci commit firewall failed during removal — harmony_node include may persist"
-  fi
-fi
-# Remove the HARMONY-MESH WiFi interface created by uci-defaults.
+# Remove all harmony UCI configuration.
+# Firewall: include + zone + all port rules
+uci -q delete firewall.harmony_node
+uci -q delete firewall.harmony_reticulum
+uci -q delete firewall.harmony_zenoh
+uci -q delete firewall.harmony_iroh
+uci -q delete firewall.harmony_dns
+uci -q delete firewall.harmony_dhcp
+uci -q delete firewall.harmony_zone
+uci commit firewall 2>/dev/null
+[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+# Wireless: mesh VIF
 if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
   uci delete wireless.harmony_mesh
   if uci commit wireless; then
@@ -143,6 +145,13 @@ if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
     logger -t "harmony-node" "WARNING: uci commit wireless failed during removal — harmony_mesh may persist"
   fi
 fi
+# Network: bridge device + interface; DHCP pool
+uci -q delete dhcp.harmony
+uci -q delete network.harmony
+uci -q delete network.br_harmony
+uci commit dhcp 2>/dev/null
+uci commit network 2>/dev/null
+[ -x /etc/init.d/network ] && /etc/init.d/network reload
 exit 0
 endef
 
