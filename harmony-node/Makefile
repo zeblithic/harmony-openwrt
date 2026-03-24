@@ -127,8 +127,13 @@ case "$$1" in
 esac
 rm -rf /etc/harmony
 # Remove firewall include from UCI.
-uci -q delete firewall.harmony_node && uci commit firewall
-[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+if uci -q delete firewall.harmony_node; then
+  if uci commit firewall; then
+    [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+  else
+    logger -t "harmony-node" "WARNING: uci commit firewall failed during removal — harmony_node include may persist"
+  fi
+fi
 # Remove the HARMONY-MESH WiFi interface created by uci-defaults.
 if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
   uci delete wireless.harmony_mesh
