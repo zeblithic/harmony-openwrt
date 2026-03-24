@@ -55,6 +55,7 @@ start_service() {
 
 	# Tunnel peers (UCI list → multiple --add-tunnel-peer flags)
 	_harmony_add_tunnel_peer_cb() {
+		[ -n "$1" ] || return 0
 		procd_append_param command --add-tunnel-peer "$1"
 	}
 	config_list_foreach main tunnel_peer _harmony_add_tunnel_peer_cb
