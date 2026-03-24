@@ -23,7 +23,8 @@ ifeq ($(ARCH),aarch64)
 else ifeq ($(ARCH),x86_64)
   RUST_TARGET:=x86_64-unknown-linux-musl
 else
-  $(error Unsupported architecture: $(ARCH). Supported: aarch64, x86_64)
+  # Sentinel — Build/Compile will error if this package is actually selected.
+  RUST_TARGET:=unsupported-$(ARCH)
 endif
 
 # Cargo linker env var: CARGO_TARGET_<UPPER_TRIPLE>_LINKER
@@ -62,6 +63,9 @@ define Build/Prepare
 endef
 
 define Build/Compile
+ifneq ($(findstring unsupported,$(RUST_TARGET)),)
+	$(error Unsupported architecture: $(ARCH). Supported: aarch64, x86_64)
+endif
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
 	CARGO_TARGET_$(RUST_TARGET_UPPER)_LINKER="$(TARGET_CC)" \
