@@ -63,9 +63,7 @@ define Build/Prepare
 endef
 
 define Build/Compile
-ifneq ($(findstring unsupported,$(RUST_TARGET)),)
-	$(error Unsupported architecture: $(ARCH). Supported: aarch64, x86_64)
-endif
+	$(if $(findstring unsupported,$(RUST_TARGET)),$(error Unsupported architecture: $(ARCH). Supported: aarch64, x86_64))
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
 	CARGO_TARGET_$(RUST_TARGET_UPPER)_LINKER="$(TARGET_CC)" \

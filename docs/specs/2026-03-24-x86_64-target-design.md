@@ -25,9 +25,13 @@ ifeq ($(ARCH),aarch64)
 else ifeq ($(ARCH),x86_64)
   RUST_TARGET:=x86_64-unknown-linux-musl
 else
-  $(error Unsupported architecture: $(ARCH))
+  # Sentinel — Build/Compile uses $(if ...) to error only when built.
+  RUST_TARGET:=unsupported-$(ARCH)
 endif
 ```
+
+The error guard uses `$(if ...)` inside `Build/Compile` (not `ifneq`,
+which is literal text inside `define` blocks and would fire unconditionally).
 
 The `CARGO_TARGET_*_LINKER` env var embeds the triple in uppercase
 with hyphens → underscores. Computed via `$(shell ...)` or Make's
