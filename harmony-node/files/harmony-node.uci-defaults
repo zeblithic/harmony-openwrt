@@ -103,13 +103,13 @@ setup_harmony_network() {
   fi
 
   # Firewall rule: DHCP (67, UDP)
-  if [ -z "$(uci -q get firewall.harmony_dhcp_fw)" ]; then
-    uci set firewall.harmony_dhcp_fw=rule
-    uci set firewall.harmony_dhcp_fw.name='Allow-Harmony-DHCP'
-    uci set firewall.harmony_dhcp_fw.src='harmony'
-    uci set firewall.harmony_dhcp_fw.dest_port='67'
-    uci set firewall.harmony_dhcp_fw.proto='udp'
-    uci set firewall.harmony_dhcp_fw.target='ACCEPT'
+  if [ -z "$(uci -q get firewall.harmony_dhcp)" ]; then
+    uci set firewall.harmony_dhcp=rule
+    uci set firewall.harmony_dhcp.name='Allow-Harmony-DHCP'
+    uci set firewall.harmony_dhcp.src='harmony'
+    uci set firewall.harmony_dhcp.dest_port='67'
+    uci set firewall.harmony_dhcp.proto='udp'
+    uci set firewall.harmony_dhcp.target='ACCEPT'
     CREATED="$CREATED harmony-dhcp-rule"
   fi
 
