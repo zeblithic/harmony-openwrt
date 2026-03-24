@@ -98,8 +98,8 @@ if [ -x /etc/uci-defaults/99-harmony-node-setup ]; then
   /etc/uci-defaults/99-harmony-node-setup || \
     logger -t "harmony-node" "WARNING: setup failed (uci commit error?); will retry on next boot"
 fi
-# Reload firewall to apply rules immediately (the uci-defaults script
-# only does wifi reload, not firewall reload).
+# Ensure firewall rules are active (idempotent — harmless if uci-defaults
+# already reloaded the firewall during setup).
 [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 exit 0
 endef
