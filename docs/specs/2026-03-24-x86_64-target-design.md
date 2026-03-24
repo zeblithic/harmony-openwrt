@@ -30,8 +30,10 @@ else
 endif
 ```
 
-The error guard uses `$(if ...)` inside `Build/Compile` (not `ifneq`,
-which is literal text inside `define` blocks and would fire unconditionally).
+The error guard uses `$(if ...)` inside `Build/Prepare` — it fires before
+`cargo fetch` to prevent a wasted network call with a bogus target triple.
+(`ifneq` cannot be used inside `define` blocks — it's literal text, not
+a Make conditional.)
 
 The `CARGO_TARGET_*_LINKER` env var embeds the triple in uppercase
 with hyphens → underscores. Computed via `$(shell ...)` or Make's

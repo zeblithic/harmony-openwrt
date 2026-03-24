@@ -55,8 +55,8 @@ cargo build -p harmony-node --features no-neon \
     --profile release-cross \
     --locked
 
-# For x86_64 (VMs, x86 devices):
-cargo build -p harmony-node --features no-neon \
+# For x86_64 (VMs, x86 devices — requires musl C cross-compiler for SSE/AVX):
+cargo build -p harmony-node \
     --target x86_64-unknown-linux-musl \
     --profile release-cross \
     --locked
