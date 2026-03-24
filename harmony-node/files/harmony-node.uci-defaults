@@ -66,14 +66,19 @@ if [ -z "$MESH_RADIO" ]; then
 fi
 
 # ── Check for mesh-capable wpad ──────────────────────────────────────────
-# wpad-basic-wolfssl (stock OpenWRT) does not support 802.11s SAE.
-# Detect via opkg if available; skip mesh setup if only the basic variant is installed.
+# wpad-basic-* (stock OpenWRT) does not support 802.11s SAE.
+# Any other wpad variant (wpad-mesh-wolfssl, wpad-wolfssl, wpad-mbedtls,
+# wpad-openssl, bare wpad) supports mesh. Invert the check: skip only if
+# a basic variant is confirmed installed.
+WPAD_BASIC=""
 if command -v opkg >/dev/null 2>&1; then
-  WPAD_PKG="$(opkg list-installed 2>/dev/null | grep -E '^wpad-mesh|^wpad-openssl|^wpad ' | head -1)"
-  if [ -z "$WPAD_PKG" ]; then
-    logger -t "$TAG" "WARNING: mesh-capable wpad not found (need wpad-mesh-wolfssl). Skipping HARMONY-MESH auto-config. See docs/mesh-wifi-setup.md"
-    exit 0
-  fi
+  WPAD_BASIC="$(opkg list-installed 2>/dev/null | grep -E '^wpad-basic' | head -1)"
+elif command -v apk >/dev/null 2>&1; then
+  WPAD_BASIC="$(apk list --installed 2>/dev/null | grep -E '^wpad-basic' | head -1)"
+fi
+if [ -n "$WPAD_BASIC" ]; then
+  logger -t "$TAG" "WARNING: $WPAD_BASIC does not support mesh SAE. Install wpad-mesh-wolfssl. Skipping HARMONY-MESH auto-config. See docs/mesh-wifi-setup.md"
+  exit 0
 fi
 
 # ── Create the mesh VIF ───────────────────────────────────────────────────
