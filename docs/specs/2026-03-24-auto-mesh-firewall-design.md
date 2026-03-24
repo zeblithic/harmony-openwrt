@@ -73,7 +73,7 @@ The `99-harmony-node-setup` script runs on first boot after install:
    wireless.harmony_mesh.mesh_fwding='0'
    wireless.harmony_mesh.mcast_rate='24000'
    ```
-6. Set radio HE features: `htmode='HE80'` (beamformee enabled by default on HE hardware)
+6. Do NOT modify htmode (would break 802.11ac-only hardware)
 7. `uci commit wireless`
 8. Trigger `wifi reload` if wireless subsystem is available
 

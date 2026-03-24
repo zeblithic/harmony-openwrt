@@ -75,21 +75,11 @@ uci set wireless.harmony_mesh.key='ZEBLITHIC'
 uci set wireless.harmony_mesh.mesh_fwding='0'
 uci set wireless.harmony_mesh.mcast_rate='24000'
 
-# Enable Wi-Fi 6 HE features on the radio (if not already set).
-# HE80 provides 80MHz channel width for high mesh throughput.
-# Beamformee improves signal quality to specific peers.
-current_htmode="$(uci -q get wireless."$MESH_RADIO".htmode)"
-case "$current_htmode" in
-  HE*|EHT*) ;; # Already HE or EHT mode, don't downgrade
-  *)
-    uci set wireless."$MESH_RADIO".htmode='HE80'
-    logger -t "$TAG" "set $MESH_RADIO htmode to HE80"
-    ;;
-esac
-
-# Note: beamformee is enabled by default on MT7996 when HE80 is set.
-# The he_su_beamformee UCI option is not portable across drivers, so
-# we rely on the hardware default rather than setting it explicitly.
+# Do NOT modify htmode — the radio's existing config determines whether
+# it runs in HE (WiFi 6), VHT (WiFi 5), or HT (WiFi 4) mode. Forcing
+# HE80 on 802.11ac-only hardware breaks all WiFi on that radio.
+# The mesh VIF works in any mode. For optimal performance on WiFi 6
+# hardware, set htmode=HE80 manually: uci set wireless.<radio>.htmode=HE80
 
 uci commit wireless
 logger -t "$TAG" "HARMONY-MESH configured on $MESH_RADIO — mesh will activate on next wifi reload"
