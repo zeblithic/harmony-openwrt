@@ -27,6 +27,11 @@ fi
 # Skip if the mesh interface is already configured (manual setup or previous install).
 if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
   logger -t "$TAG" "wireless.harmony_mesh already configured, skipping mesh auto-config"
+  # Backfill settings added after the initial auto-config release.
+  if [ -z "$(uci -q get wireless.harmony_mesh.multicast_to_unicast)" ]; then
+    uci set wireless.harmony_mesh.multicast_to_unicast='0'
+    uci commit wireless && logger -t "$TAG" "backfilled multicast_to_unicast=0"
+  fi
   exit 0
 fi
 
