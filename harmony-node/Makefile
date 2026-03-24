@@ -128,6 +128,12 @@ rm -rf /etc/harmony
 # Remove firewall include from UCI.
 uci -q delete firewall.harmony_node && uci commit firewall
 [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+# Remove the HARMONY-MESH WiFi interface created by uci-defaults.
+if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
+  uci delete wireless.harmony_mesh
+  uci commit wireless
+  [ -x /sbin/wifi ] && wifi reload
+fi
 exit 0
 endef
 

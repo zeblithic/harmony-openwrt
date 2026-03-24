@@ -3,7 +3,9 @@
 > **Note:** As of v0.2.0, the harmony-node package **automatically configures**
 > the HARMONY-MESH interface on first install. The auto-config detects the 5GHz
 > radio, creates the mesh VIF with SSID `HARMONY-MESH` and PSK `ZEBLITHIC`,
-> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, HE80).
+> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000).
+> `htmode` is intentionally left at the radio's existing value (see below
+> to enable HE80 manually on WiFi 6 hardware).
 > **You only need this guide if** you want to customize the configuration, use
 > a different radio, or troubleshoot mesh issues.
 
