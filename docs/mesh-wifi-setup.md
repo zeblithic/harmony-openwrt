@@ -3,7 +3,7 @@
 > **Note:** As of v0.2.0, the harmony-node package **automatically configures**
 > the HARMONY-MESH interface on first install. The auto-config detects the 5GHz
 > radio, creates the mesh VIF with SSID `HARMONY-MESH` and PSK `ZEBLITHIC`,
-> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000).
+> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, multicast_to_unicast=0).
 > `htmode` is intentionally left at the radio's existing value (see below
 > to enable HE80 manually on WiFi 6 hardware).
 > **You only need this guide if** you want to customize the configuration, use
@@ -101,11 +101,12 @@ config wifi-iface 'harmony_mesh'
     option device 'radio1'
     option mode 'mesh'
     option network 'lan'
-    option mesh_id 'harmony'
+    option mesh_id 'HARMONY-MESH'
     option encryption 'sae'
-    option key 'YourMeshKey'
+    option key 'ZEBLITHIC'
     option mesh_fwding '0'
     option mcast_rate '24000'
+    option multicast_to_unicast '0'
 ```
 
 ### Or configure via UCI commands
@@ -116,11 +117,12 @@ uci set wireless.harmony_mesh=wifi-iface
 uci set wireless.harmony_mesh.device='radio1'
 uci set wireless.harmony_mesh.mode='mesh'
 uci set wireless.harmony_mesh.network='lan'
-uci set wireless.harmony_mesh.mesh_id='harmony'
+uci set wireless.harmony_mesh.mesh_id='HARMONY-MESH'
 uci set wireless.harmony_mesh.encryption='sae'
-uci set wireless.harmony_mesh.key='YourMeshKey'
+uci set wireless.harmony_mesh.key='ZEBLITHIC'
 uci set wireless.harmony_mesh.mesh_fwding='0'
 uci set wireless.harmony_mesh.mcast_rate='24000'
+uci set wireless.harmony_mesh.multicast_to_unicast='0'
 
 # Enable HE features on the radio (if not already set)
 uci set wireless.radio1.htmode='HE80'
@@ -148,10 +150,11 @@ wifi reload
 |--------|-------|-----|
 | `mode 'mesh'` | 802.11s mesh point | Self-forming L2 peering, no coordinator needed |
 | `network 'lan'` | Bridge to LAN | Mesh traffic visible to harmony-node on the LAN bridge |
-| `mesh_id 'harmony'` | Mesh network name | All Harmony nodes must use the same mesh_id to peer |
+| `mesh_id 'HARMONY-MESH'` | Mesh network name | Well-known communal mesh — all Harmony nodes must use the same mesh_id to peer |
 | `encryption 'sae'` | WPA3-SAE | Zero-knowledge password proof — secure mesh peering |
 | `mesh_fwding '0'` | **Disable HWMP** | Critical — Reticulum handles routing, not 802.11s |
 | `mcast_rate '24000'` | 24 Mbps broadcast floor | Prevents airtime starvation from low-rate broadcasts |
+| `multicast_to_unicast '0'` | **Disable mcast→unicast** | Prevents N×airtime from per-peer unicast conversion |
 
 ### Why disable mesh_fwding
 
@@ -179,6 +182,17 @@ Setting `mcast_rate '24000'` forces broadcasts to 24 Mbps, reducing airtime by 4
 This also culls weak links — nodes with poor signal won't receive the higher-rate
 broadcasts, which is beneficial: Reticulum automatically routes through strong,
 reliable adjacencies instead of fragile fringe connections.
+
+### Upgrading from earlier versions
+
+If you installed harmony-node before `multicast_to_unicast` was added to the
+auto-config, apply it manually:
+
+```bash
+uci set wireless.harmony_mesh.multicast_to_unicast='0'
+uci commit wireless
+wifi reload
+```
 
 ## Verify the mesh is working
 
