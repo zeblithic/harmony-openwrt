@@ -37,12 +37,12 @@ MESH_RADIO=""
 # Check for explicit override: harmony-node.mesh.radio
 OVERRIDE_RADIO="$(uci -q get harmony-node.mesh.radio)"
 if [ -n "$OVERRIDE_RADIO" ]; then
-  # Verify the override radio exists
-  if [ -n "$(uci -q get wireless."$OVERRIDE_RADIO")" ]; then
+  # Verify the override radio exists and is a wifi-device (not a wifi-iface)
+  if [ "$(uci -q get wireless."$OVERRIDE_RADIO")" = "wifi-device" ]; then
     MESH_RADIO="$OVERRIDE_RADIO"
     logger -t "$TAG" "using override radio: $MESH_RADIO"
   else
-    logger -t "$TAG" "WARNING: override radio '$OVERRIDE_RADIO' not found, falling back to auto-detect"
+    logger -t "$TAG" "WARNING: override radio '$OVERRIDE_RADIO' is not a wifi-device, falling back to auto-detect"
   fi
 fi
 
