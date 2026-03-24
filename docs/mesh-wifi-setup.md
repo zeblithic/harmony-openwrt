@@ -3,7 +3,7 @@
 > **Note:** As of v0.2.0, the harmony-node package **automatically configures**
 > the HARMONY-MESH interface on first install. The auto-config detects the 5GHz
 > radio, creates the mesh VIF with SSID `HARMONY-MESH` and PSK `ZEBLITHIC`,
-> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, multicast_to_unicast=0).
+> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, multicast_to_unicast=0, powersave=0).
 > `htmode` is intentionally left at the radio's existing value (see below
 > to enable HE80 manually on WiFi 6 hardware).
 > **You only need this guide if** you want to customize the configuration, use
@@ -107,6 +107,7 @@ config wifi-iface 'harmony_mesh'
     option mesh_fwding '0'
     option mcast_rate '24000'
     option multicast_to_unicast '0'
+    option powersave '0'
 ```
 
 ### Or configure via UCI commands
@@ -123,6 +124,7 @@ uci set wireless.harmony_mesh.key='ZEBLITHIC'
 uci set wireless.harmony_mesh.mesh_fwding='0'
 uci set wireless.harmony_mesh.mcast_rate='24000'
 uci set wireless.harmony_mesh.multicast_to_unicast='0'
+uci set wireless.harmony_mesh.powersave='0'
 
 # Enable HE features on the radio (if not already set)
 uci set wireless.radio1.htmode='HE80'
@@ -155,6 +157,7 @@ wifi reload
 | `mesh_fwding '0'` | **Disable HWMP** | Critical — Reticulum handles routing, not 802.11s |
 | `mcast_rate '24000'` | 24 Mbps broadcast floor | Prevents airtime starvation from low-rate broadcasts |
 | `multicast_to_unicast '0'` | **Disable mcast→unicast** | Prevents N×airtime from per-peer unicast conversion |
+| `powersave '0'` | **Disable power save** | Routers are always-on — power save adds DTIM buffering latency |
 
 ### Why disable mesh_fwding
 
@@ -185,11 +188,12 @@ reliable adjacencies instead of fragile fringe connections.
 
 ### Upgrading from earlier versions
 
-If you installed harmony-node before `multicast_to_unicast` was added to the
-auto-config, apply it manually:
+Settings added after the initial auto-config are automatically backfilled on
+package upgrade. If auto-backfill fails, apply manually:
 
 ```bash
 uci set wireless.harmony_mesh.multicast_to_unicast='0'
+uci set wireless.harmony_mesh.powersave='0'
 uci commit wireless
 wifi reload
 ```

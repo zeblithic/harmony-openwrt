@@ -106,7 +106,7 @@ On first install, the package **automatically** configures an 802.11s mesh inter
 - **SSID:** `HARMONY-MESH` — well-known, communal mesh network
 - **PSK:** `ZEBLITHIC` — intentionally public (Harmony provides E2E encryption)
 - **Radio:** Auto-detected 5GHz (override with `uci set harmony-node.mesh.radio='radioN'`)
-- **Tunings:** `mesh_fwding=0` (Reticulum handles routing), `mcast_rate=24000` (24Mbps broadcast floor), `multicast_to_unicast=0` (true broadcast, no per-peer duplication)
+- **Tunings:** `mesh_fwding=0` (Reticulum handles routing), `mcast_rate=24000` (24Mbps broadcast floor), `multicast_to_unicast=0` (true broadcast), `powersave=0` (no DTIM buffering delay)
 
 Any Harmony device within WiFi range automatically joins the mesh. No manual setup needed.
 
