@@ -10,9 +10,10 @@ OpenWRT package feed for [Harmony](https://github.com/zeblithic/harmony) mesh ne
 
 ## Prerequisites
 
-- Rust toolchain with the `aarch64-unknown-linux-musl` target:
+- Rust toolchain with the musl target for your architecture:
   ```bash
-  rustup target add aarch64-unknown-linux-musl
+  rustup target add aarch64-unknown-linux-musl  # ARM64 routers
+  rustup target add x86_64-unknown-linux-musl   # x86_64 devices/VMs
   ```
 - OpenWRT buildroot (or SDK) for your target device
 
@@ -43,18 +44,25 @@ The output `.ipk` is in `bin/packages/<arch>/harmony/`.
 
 ## Standalone Build (without OpenWRT buildroot)
 
-To cross-compile harmony-node directly:
+To cross-compile harmony-node directly (replace target as needed):
 
 ```bash
 git clone https://github.com/zeblithic/harmony.git
 cd harmony
+# For aarch64 (ARM64 routers):
 cargo build -p harmony-node --features no-neon \
     --target aarch64-unknown-linux-musl \
     --profile release-cross \
     --locked
+
+# For x86_64 (VMs, x86 devices):
+cargo build -p harmony-node --features no-neon \
+    --target x86_64-unknown-linux-musl \
+    --profile release-cross \
+    --locked
 ```
 
-The binary is at `target/aarch64-unknown-linux-musl/release-cross/harmony`.
+The binary is at `target/<target-triple>/release-cross/harmony`.
 Copy it to `/usr/bin/harmony` on your router via scp.
 
 ## Configuration

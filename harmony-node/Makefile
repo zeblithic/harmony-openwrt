@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=harmony-node
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
@@ -17,6 +17,18 @@ PKG_MIRROR_HASH:=skip
 
 PKG_BUILD_DEPENDS:=rust/host
 
+# Map OpenWRT arch to Rust target triple.
+ifeq ($(ARCH),aarch64)
+  RUST_TARGET:=aarch64-unknown-linux-musl
+else ifeq ($(ARCH),x86_64)
+  RUST_TARGET:=x86_64-unknown-linux-musl
+else
+  $(error Unsupported architecture: $(ARCH). Supported: aarch64, x86_64)
+endif
+
+# Cargo linker env var: CARGO_TARGET_<UPPER_TRIPLE>_LINKER
+RUST_TARGET_UPPER:=$(shell echo '$(RUST_TARGET)' | tr 'a-z-' 'A-Z_')
+
 include $(INCLUDE_DIR)/package.mk
 
 define Package/harmony-node
@@ -24,7 +36,7 @@ define Package/harmony-node
   CATEGORY:=Network
   TITLE:=Harmony decentralized mesh node
   URL:=https://github.com/zeblithic/harmony
-  DEPENDS:=@(aarch64)
+  DEPENDS:=@(aarch64||x86_64)
 endef
 
 define Package/harmony-node/description
@@ -46,16 +58,16 @@ define Build/Prepare
 	$(call Build/Prepare/Default)
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
-	cargo fetch --locked --target aarch64-unknown-linux-musl
+	cargo fetch --locked --target $(RUST_TARGET)
 endef
 
 define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
-	CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$(TARGET_CC)" \
+	CARGO_TARGET_$(RUST_TARGET_UPPER)_LINKER="$(TARGET_CC)" \
 	cargo build -p harmony-node \
 		--features no-neon \
-		--target aarch64-unknown-linux-musl \
+		--target $(RUST_TARGET) \
 		--profile release-cross \
 		--offline \
 		--locked
@@ -63,7 +75,7 @@ endef
 
 define Package/harmony-node/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/target/aarch64-unknown-linux-musl/release-cross/harmony \
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/target/$(RUST_TARGET)/release-cross/harmony \
 		$(1)/usr/bin/harmony
 
 	$(INSTALL_DIR) $(1)/etc/init.d
