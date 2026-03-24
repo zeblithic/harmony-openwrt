@@ -115,8 +115,6 @@ have full LAN access — including the router admin UI, NAS, printers, etc. This
 intentional for zero-config simplicity: harmony-node listens on `0.0.0.0` and Zenoh
 multicast scouting requires L2 adjacency. If your LAN has sensitive services, either
 secure them with authentication or move the mesh to an isolated network manually.
-See [docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md) for advanced configuration.
-
 For advanced configuration, troubleshooting, and band planning, see
 **[docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md)**.
 
