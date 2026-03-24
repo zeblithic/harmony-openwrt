@@ -53,8 +53,8 @@ else
   ip6tables -A input_wan_rule -p udp --dport 7446 -j ACCEPT
 
   # iroh-net QUIC tunnels — both LAN and WAN
-  iptables  -A input_lan_rule -p udp --dport 4433:4435 -j ACCEPT
-  ip6tables -A input_lan_rule -p udp --dport 4433:4435 -j ACCEPT
-  iptables  -A input_wan_rule -p udp --dport 4433:4435 -j ACCEPT
-  ip6tables -A input_wan_rule -p udp --dport 4433:4435 -j ACCEPT
+  iptables  -A input_lan_rule -p udp --dport 4434:4435 -j ACCEPT
+  ip6tables -A input_lan_rule -p udp --dport 4434:4435 -j ACCEPT
+  iptables  -A input_wan_rule -p udp --dport 4434:4435 -j ACCEPT
+  ip6tables -A input_wan_rule -p udp --dport 4434:4435 -j ACCEPT
 fi

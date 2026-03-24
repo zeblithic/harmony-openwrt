@@ -81,14 +81,21 @@ uci set wireless.harmony_mesh.mcast_rate='24000'
 # The mesh VIF works in any mode. For optimal performance on WiFi 6
 # hardware, set htmode=HE80 manually: uci set wireless.<radio>.htmode=HE80
 
-uci commit wireless
-logger -t "$TAG" "HARMONY-MESH configured on $MESH_RADIO — mesh will activate on next wifi reload"
+if ! uci commit wireless; then
+  logger -t "$TAG" "ERROR: uci commit wireless failed — HARMONY-MESH NOT configured"
+  exit 1
+fi
+logger -t "$TAG" "HARMONY-MESH configured on $MESH_RADIO"
 
 # Trigger wifi reload if the wireless subsystem is available.
 # During early boot (ImageBuilder), wifi may not be ready yet — the
 # committed config takes effect when wireless starts normally.
 if [ -x /sbin/wifi ]; then
-  wifi reload 2>/dev/null
+  if wifi reload 2>/tmp/harmony-wifi-reload.err; then
+    logger -t "$TAG" "wifi reload succeeded — mesh active"
+  else
+    logger -t "$TAG" "WARNING: wifi reload failed — mesh will activate on next boot. See /tmp/harmony-wifi-reload.err"
+  fi
 fi
 
 exit 0
