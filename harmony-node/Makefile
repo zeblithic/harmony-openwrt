@@ -95,7 +95,8 @@ define Package/harmony-node/postinst
 # It is fully idempotent (skips firewall/mesh setup if already configured)
 # and handles both firewall include registration and HARMONY-MESH VIF creation.
 if [ -x /etc/uci-defaults/99-harmony-node-setup ]; then
-  /etc/uci-defaults/99-harmony-node-setup
+  /etc/uci-defaults/99-harmony-node-setup || \
+    logger -t "harmony-node" "WARNING: setup failed (uci commit error?); will retry on next boot"
 fi
 # Reload firewall to apply rules immediately (the uci-defaults script
 # only does wifi reload, not firewall reload).
