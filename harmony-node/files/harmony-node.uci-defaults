@@ -23,14 +23,16 @@ setup_harmony_network() {
       ;;
   esac
 
-  CREATED=""
+  CREATED_NET=""
+  CREATED_DHCP=""
+  CREATED_FW=""
 
   # Bridge device br-harmony
   if [ -z "$(uci -q get network.br_harmony)" ]; then
     uci set network.br_harmony=device
     uci set network.br_harmony.type='bridge'
     uci set network.br_harmony.name='br-harmony'
-    CREATED="$CREATED br_harmony-device"
+    CREATED_NET="$CREATED_NET bridge"
   fi
 
   # Network interface harmony
@@ -40,7 +42,7 @@ setup_harmony_network() {
     uci set network.harmony.proto='static'
     uci set network.harmony.ipaddr='10.73.0.1'
     uci set network.harmony.netmask='255.255.255.0'
-    CREATED="$CREATED harmony-interface"
+    CREATED_NET="$CREATED_NET interface"
   fi
 
   # DHCP pool harmony
@@ -50,7 +52,7 @@ setup_harmony_network() {
     uci set dhcp.harmony.start='100'
     uci set dhcp.harmony.limit='100'
     uci set dhcp.harmony.leasetime='1h'
-    CREATED="$CREATED harmony-dhcp"
+    CREATED_DHCP="$CREATED_DHCP pool"
   fi
 
   # Firewall zone harmony_zone
@@ -61,7 +63,7 @@ setup_harmony_network() {
     uci set firewall.harmony_zone.input='REJECT'
     uci set firewall.harmony_zone.output='ACCEPT'
     uci set firewall.harmony_zone.forward='REJECT'
-    CREATED="$CREATED harmony-zone"
+    CREATED_FW="$CREATED_FW zone"
   fi
 
   # Firewall rule: Reticulum (dynamic port, TCP+UDP)
@@ -72,7 +74,7 @@ setup_harmony_network() {
     uci set firewall.harmony_reticulum.dest_port="$RET_PORT"
     uci set firewall.harmony_reticulum.proto='tcpudp'
     uci set firewall.harmony_reticulum.target='ACCEPT'
-    CREATED="$CREATED harmony-reticulum-rule"
+    CREATED_FW="$CREATED_FW reticulum"
   fi
 
   # Firewall rule: Zenoh (7446, TCP+UDP)
@@ -83,7 +85,7 @@ setup_harmony_network() {
     uci set firewall.harmony_zenoh.dest_port='7446'
     uci set firewall.harmony_zenoh.proto='tcpudp'
     uci set firewall.harmony_zenoh.target='ACCEPT'
-    CREATED="$CREATED harmony-zenoh-rule"
+    CREATED_FW="$CREATED_FW zenoh"
   fi
 
   # Firewall rule: iroh (4434-4435, TCP+UDP)
@@ -94,7 +96,7 @@ setup_harmony_network() {
     uci set firewall.harmony_iroh.dest_port='4434-4435'
     uci set firewall.harmony_iroh.proto='tcpudp'
     uci set firewall.harmony_iroh.target='ACCEPT'
-    CREATED="$CREATED harmony-iroh-rule"
+    CREATED_FW="$CREATED_FW iroh"
   fi
 
   # Firewall rule: DNS (53, TCP+UDP)
@@ -105,7 +107,7 @@ setup_harmony_network() {
     uci set firewall.harmony_dns.dest_port='53'
     uci set firewall.harmony_dns.proto='tcpudp'
     uci set firewall.harmony_dns.target='ACCEPT'
-    CREATED="$CREATED harmony-dns-rule"
+    CREATED_FW="$CREATED_FW dns"
   fi
 
   # Firewall rule: DHCP (67, UDP)
@@ -116,22 +118,31 @@ setup_harmony_network() {
     uci set firewall.harmony_dhcp.dest_port='67'
     uci set firewall.harmony_dhcp.proto='udp'
     uci set firewall.harmony_dhcp.target='ACCEPT'
-    CREATED="$CREATED harmony-dhcp-rule"
+    CREATED_FW="$CREATED_FW dhcp"
   fi
 
-  if [ -n "$CREATED" ]; then
+  # Commit only databases that have staged changes.
+  if [ -n "$CREATED_NET" ]; then
     if ! uci commit network; then
       logger -t "$TAG" "ERROR: uci commit network failed during harmony network setup"
       return 1
     fi
+  fi
+  if [ -n "$CREATED_DHCP" ]; then
     if ! uci commit dhcp; then
       logger -t "$TAG" "ERROR: uci commit dhcp failed during harmony network setup"
       return 1
     fi
+  fi
+  if [ -n "$CREATED_FW" ]; then
     if ! uci commit firewall; then
       logger -t "$TAG" "ERROR: uci commit firewall failed during harmony network setup"
       return 1
     fi
+  fi
+
+  CREATED="$CREATED_NET$CREATED_DHCP$CREATED_FW"
+  if [ -n "$CREATED" ]; then
     logger -t "$TAG" "harmony network setup created:$CREATED"
   fi
 }

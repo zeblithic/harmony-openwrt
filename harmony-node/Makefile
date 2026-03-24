@@ -145,15 +145,20 @@ uci -q delete firewall.harmony_iroh
 uci -q delete firewall.harmony_dns
 uci -q delete firewall.harmony_dhcp
 uci -q delete firewall.harmony_zone
-uci commit firewall 2>/dev/null
-[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
-# 3. Network: bridge device + interface; DHCP pool
+if uci commit firewall; then
+  [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+else
+  logger -t "harmony-node" "WARNING: uci commit firewall failed during removal — harmony firewall rules may persist"
+fi
+# 3. Network + DHCP
 uci -q delete dhcp.harmony
 uci -q delete network.harmony
 uci -q delete network.br_harmony
-uci commit dhcp 2>/dev/null
-uci commit network 2>/dev/null
-[ -x /etc/init.d/network ] && /etc/init.d/network reload
+if uci commit dhcp && uci commit network; then
+  [ -x /etc/init.d/network ] && /etc/init.d/network reload
+else
+  logger -t "harmony-node" "WARNING: uci commit network/dhcp failed during removal — harmony network config may persist"
+fi
 exit 0
 endef
 
