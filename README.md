@@ -99,23 +99,37 @@ Or edit `/etc/config/harmony-node` directly and restart:
 /etc/init.d/harmony-node restart
 ```
 
-## Mesh WiFi Setup
+## Mesh WiFi (Auto-Configured)
 
-For mesh networking between Harmony nodes over WiFi, configure an 802.11s mesh
-interface on the 5 GHz radio. See **[docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md)**
-for the complete guide covering:
+On first install, the package **automatically** configures an 802.11s mesh interface:
 
-- 802.11s mesh point configuration with HWMP disabled
-- Concurrent AP + mesh on the same radio
-- SAE encryption, multicast rate optimization
-- Band planning for MT7996 tri-band hardware
-- Troubleshooting and known limitations
+- **SSID:** `HARMONY-MESH` — well-known, communal mesh network
+- **PSK:** `ZEBLITHIC` — intentionally public (Harmony provides E2E encryption)
+- **Radio:** Auto-detected 5GHz (override with `uci set harmony-node.mesh.radio='radioN'`)
+- **Tunings:** `mesh_fwding=0` (Reticulum handles routing), `mcast_rate=24000` (24Mbps broadcast floor)
+
+Any Harmony device within WiFi range automatically joins the mesh. No manual setup needed.
+
+**Security note:** The mesh VIF bridges to `br-lan` (`network='lan'`), so mesh peers
+have full LAN access — including the router admin UI, NAS, printers, etc. This is
+intentional for zero-config simplicity: harmony-node listens on `0.0.0.0` and Zenoh
+multicast scouting requires L2 adjacency. If your LAN has sensitive services, either
+secure them with authentication or move the mesh to an isolated network manually.
+For advanced configuration, troubleshooting, and band planning, see
+**[docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md)**.
 
 ## Firewall
 
-The package installs a firewall include (`/etc/harmony-node.firewall`) that automatically:
-- **Allows** inbound UDP 4242 on the **LAN** zone (mesh peer communication)
-- **Blocks** inbound UDP 4242 on the **WAN** zone (defense-in-depth)
+The package installs a firewall include (`/etc/harmony-node.firewall`) that automatically
+opens Harmony protocol ports on **both LAN and WAN**:
+
+- **UDP 4242** — Reticulum mesh packets
+- **UDP 7446** — Zenoh multicast scouting / peer discovery
+- **UDP 4434-4435** — iroh-net QUIC tunnels (4433 excluded — IANA HTTPS-alt overlap)
+
+Harmony provides its own E2E encryption (Reticulum + ML-KEM + ML-DSA), so there is
+no meaningful trust difference between LAN and WAN for Harmony traffic. Non-Harmony
+traffic remains firewalled on WAN as before.
 
 These rules are applied automatically on package install and on every firewall reload.
 No manual configuration is needed. Both fw3 (iptables, OpenWRT <22.03) and fw4
@@ -133,10 +147,10 @@ iptables -L input_lan_rule -n | grep 4242
 iptables -L input_wan_rule -n | grep 4242
 ```
 
-To allow Harmony traffic on WAN (e.g., for cross-site mesh links):
+To restrict Harmony traffic to LAN only (not recommended — breaks WAN peering):
 
 ```bash
-# Edit the firewall include to remove or comment out the WAN DROP rule
+# Edit the firewall include to change WAN ACCEPT rules to DROP
 vi /etc/harmony-node.firewall
 /etc/init.d/firewall reload
 ```

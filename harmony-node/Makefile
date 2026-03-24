@@ -81,24 +81,25 @@ define Package/harmony-node/install
 	$(INSTALL_BIN) ./files/harmony-node.firewall $(1)/etc/harmony-node.firewall
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/harmony-node.uci-defaults $(1)/etc/uci-defaults/99-harmony-node-firewall
+	$(INSTALL_BIN) ./files/harmony-node.uci-defaults $(1)/etc/uci-defaults/99-harmony-node-setup
 endef
 
 define Package/harmony-node/postinst
 #!/bin/sh
 # Skip during ImageBuilder / offline-root installs — UCI writes would
 # target the build host, not the device. For ImageBuilder images, the
-# /etc/uci-defaults/99-harmony-node-firewall script handles UCI
+# /etc/uci-defaults/99-harmony-node-setup script handles all UCI
 # registration on first device boot instead.
 [ -n "$$IPKG_INSTROOT" ] && exit 0
-# Register firewall include if not already present.
-if [ -z "$$(uci -q get firewall.harmony_node)" ]; then
-  uci set firewall.harmony_node=include
-  uci set firewall.harmony_node.path='/etc/harmony-node.firewall'
-  uci set firewall.harmony_node.reload='1'
-  uci commit firewall
+# Run the uci-defaults script directly for live installs.
+# It is fully idempotent (skips firewall/mesh setup if already configured)
+# and handles both firewall include registration and HARMONY-MESH VIF creation.
+if [ -x /etc/uci-defaults/99-harmony-node-setup ]; then
+  /etc/uci-defaults/99-harmony-node-setup || \
+    logger -t "harmony-node" "WARNING: setup failed (uci commit error?); will retry on next boot"
 fi
-# Reload firewall to apply rules immediately.
+# Reload firewall to apply rules immediately (the uci-defaults script
+# only does wifi reload, not firewall reload).
 [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
 exit 0
 endef
@@ -126,8 +127,22 @@ case "$$1" in
 esac
 rm -rf /etc/harmony
 # Remove firewall include from UCI.
-uci -q delete firewall.harmony_node && uci commit firewall
-[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+if uci -q delete firewall.harmony_node; then
+  if uci commit firewall; then
+    [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+  else
+    logger -t "harmony-node" "WARNING: uci commit firewall failed during removal — harmony_node include may persist"
+  fi
+fi
+# Remove the HARMONY-MESH WiFi interface created by uci-defaults.
+if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
+  uci delete wireless.harmony_mesh
+  if uci commit wireless; then
+    [ -x /sbin/wifi ] && wifi reload
+  else
+    logger -t "harmony-node" "WARNING: uci commit wireless failed during removal — harmony_mesh may persist"
+  fi
+fi
 exit 0
 endef
 
