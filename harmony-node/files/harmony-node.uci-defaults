@@ -181,7 +181,10 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
     fi
   fi
   # ── Isolation backfill: migrate mesh VIF from br-lan to br-harmony ──
-  if [ -z "$(uci -q get network.harmony)" ]; then
+  # Re-enter if network.harmony exists but VIF migration didn't complete
+  # (e.g. previous run created the network but uci commit wireless failed).
+  if [ -z "$(uci -q get network.harmony)" ] || \
+     [ "$(uci -q get wireless.harmony_mesh.network)" != "harmony" ]; then
     logger -t "$TAG" "backfilling harmony network isolation"
     if ! setup_harmony_network; then
       logger -t "$TAG" "ERROR: setup_harmony_network failed during isolation backfill"

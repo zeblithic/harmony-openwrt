@@ -126,7 +126,18 @@ case "$$1" in
 esac
 rm -rf /etc/harmony
 # Remove all harmony UCI configuration.
-# Firewall: include + zone + all port rules
+# Order: wireless first (disconnect mesh peers before changing firewall),
+# then firewall (zone + rules + include), then network/DHCP.
+# 1. Wireless — disconnect peers before any rule changes
+if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
+  uci delete wireless.harmony_mesh
+  if uci commit wireless; then
+    [ -x /sbin/wifi ] && wifi reload
+  else
+    logger -t "harmony-node" "WARNING: uci commit wireless failed during removal — harmony_mesh may persist"
+  fi
+fi
+# 2. Firewall: include + zone + all port rules
 uci -q delete firewall.harmony_node
 uci -q delete firewall.harmony_reticulum
 uci -q delete firewall.harmony_zenoh
@@ -136,16 +147,7 @@ uci -q delete firewall.harmony_dhcp
 uci -q delete firewall.harmony_zone
 uci commit firewall 2>/dev/null
 [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
-# Wireless: mesh VIF
-if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
-  uci delete wireless.harmony_mesh
-  if uci commit wireless; then
-    [ -x /sbin/wifi ] && wifi reload
-  else
-    logger -t "harmony-node" "WARNING: uci commit wireless failed during removal — harmony_mesh may persist"
-  fi
-fi
-# Network: bridge device + interface; DHCP pool
+# 3. Network: bridge device + interface; DHCP pool
 uci -q delete dhcp.harmony
 uci -q delete network.harmony
 uci -q delete network.br_harmony
