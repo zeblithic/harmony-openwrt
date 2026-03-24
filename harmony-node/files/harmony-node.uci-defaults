@@ -174,6 +174,28 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
       exit 1
     fi
   fi
+  # ── Isolation backfill: migrate mesh VIF from br-lan to br-harmony ──
+  if [ -z "$(uci -q get network.harmony)" ]; then
+    logger -t "$TAG" "backfilling harmony network isolation"
+    setup_harmony_network
+
+    # Migrate the mesh VIF from lan to harmony
+    if uci set wireless.harmony_mesh.network='harmony'; then
+      if uci commit wireless; then
+        logger -t "$TAG" "migrated wireless.harmony_mesh.network to harmony"
+        [ -x /sbin/wifi ] && wifi reload 2>/tmp/harmony-wifi-reload.err
+        # network reload also triggers dnsmasq for the new DHCP pool via procd.
+        [ -x /etc/init.d/network ] && /etc/init.d/network reload
+        [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+      else
+        logger -t "$TAG" "ERROR: uci commit wireless failed during isolation backfill"
+        exit 1
+      fi
+    else
+      logger -t "$TAG" "ERROR: uci set network='harmony' failed during isolation backfill"
+      exit 1
+    fi
+  fi
   exit 0
 fi
 
