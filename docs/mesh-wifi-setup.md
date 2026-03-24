@@ -3,7 +3,7 @@
 > **Note:** As of v0.2.0, the harmony-node package **automatically configures**
 > the HARMONY-MESH interface on first install. The auto-config detects the 5GHz
 > radio, creates the mesh VIF with SSID `HARMONY-MESH` and PSK `ZEBLITHIC`,
-> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, multicast_to_unicast=0, powersave=0).
+> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, multicast_to_unicast=0, powersave=0, network='harmony' (isolated from LAN)).
 > `htmode` is intentionally left at the radio's existing value (see below
 > to enable HE80 manually on WiFi 6 hardware).
 > **You only need this guide if** you want to customize the configuration, use
@@ -100,7 +100,7 @@ config wifi-iface 'default_radio1'
 config wifi-iface 'harmony_mesh'
     option device 'radio1'
     option mode 'mesh'
-    option network 'lan'
+    option network 'harmony'
     option mesh_id 'HARMONY-MESH'
     option encryption 'sae'
     option key 'ZEBLITHIC'
@@ -117,7 +117,7 @@ config wifi-iface 'harmony_mesh'
 uci set wireless.harmony_mesh=wifi-iface
 uci set wireless.harmony_mesh.device='radio1'
 uci set wireless.harmony_mesh.mode='mesh'
-uci set wireless.harmony_mesh.network='lan'
+uci set wireless.harmony_mesh.network='harmony'
 uci set wireless.harmony_mesh.mesh_id='HARMONY-MESH'
 uci set wireless.harmony_mesh.encryption='sae'
 uci set wireless.harmony_mesh.key='ZEBLITHIC'
@@ -151,7 +151,7 @@ wifi reload
 | Option | Value | Why |
 |--------|-------|-----|
 | `mode 'mesh'` | 802.11s mesh point | Self-forming L2 peering, no coordinator needed |
-| `network 'lan'` | Bridge to LAN | Mesh traffic visible to harmony-node on the LAN bridge |
+| `network 'harmony'` | Dedicated mesh bridge | Isolated from LAN — harmony-node sees both bridges via 0.0.0.0 binding |
 | `mesh_id 'HARMONY-MESH'` | Mesh network name | Well-known communal mesh — all Harmony nodes must use the same mesh_id to peer |
 | `encryption 'sae'` | WPA3-SAE | Zero-knowledge password proof — secure mesh peering |
 | `mesh_fwding '0'` | **Disable HWMP** | Critical — Reticulum handles routing, not 802.11s |
@@ -189,9 +189,15 @@ reliable adjacencies instead of fragile fringe connections.
 ### Upgrading from earlier versions
 
 Settings added after the initial auto-config are automatically backfilled on
-package upgrade. If auto-backfill fails, apply manually:
+package upgrade. This includes the network isolation migration: `network='lan'`
+is migrated to `network='harmony'` on upgrade, and the `harmony` network interface,
+`br-harmony` bridge (`10.73.0.0/24`), and dedicated firewall zone are created
+automatically.
+
+If auto-backfill fails, apply manually:
 
 ```bash
+uci set wireless.harmony_mesh.network='harmony'
 uci set wireless.harmony_mesh.multicast_to_unicast='0'
 uci set wireless.harmony_mesh.powersave='0'
 uci commit wireless
