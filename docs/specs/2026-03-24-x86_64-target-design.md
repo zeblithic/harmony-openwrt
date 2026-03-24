@@ -45,12 +45,14 @@ All 5 hardcoded references become `$(RUST_TARGET)`:
 
 1. `DEPENDS:=@(aarch64||x86_64)` — allow both in menuconfig
 2. `cargo fetch --target $(RUST_TARGET)` — fetch deps for target
-3. `CARGO_TARGET_<UPPER>_LINKER=$(TARGET_CC)` — dynamic env var name
-4. `cargo build --target $(RUST_TARGET)` — cross-compile
-5. `$(PKG_BUILD_DIR)/target/$(RUST_TARGET)/release-cross/harmony` — binary path
+3. `CARGO_TARGET_<UPPER>_LINKER=$(TARGET_CC)` — dynamic linker env var
+4. `CC_<UPPER>=$(TARGET_CC)` — C compiler for `cc` crate (BLAKE3 SIMD assembly)
+5. `cargo build $(RUST_FEATURES) --target $(RUST_TARGET)` — cross-compile
+6. `$(PKG_BUILD_DIR)/target/$(RUST_TARGET)/release-cross/harmony` — binary path
 
-Both architectures use `--features no-neon` (pure Rust BLAKE3).
-The `no-neon` feature disables all BLAKE3 assembly, not just NEON.
+Per-arch BLAKE3 feature flags:
+- aarch64: `--features no-neon` — pure Rust BLAKE3 (no C compiler needed)
+- x86_64: no feature flag — SSE2/AVX2 assembly compiled by `$(TARGET_CC)`
 
 ## File Changes
 
@@ -62,7 +64,7 @@ The `no-neon` feature disables all BLAKE3 assembly, not just NEON.
 ## Not in Scope
 
 - Other architectures (mips, arm32) — same pattern, add when needed
-- NEON/SSE optimization — both use pure Rust BLAKE3
+- Further SIMD optimization — aarch64 uses pure Rust; x86_64 uses SSE/AVX via SDK CC
 
 ## Testing
 

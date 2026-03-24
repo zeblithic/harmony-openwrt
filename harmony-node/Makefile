@@ -72,6 +72,7 @@ define Build/Compile
 	cd $(PKG_BUILD_DIR) && \
 	CARGO_HOME=$(PKG_BUILD_DIR)/.cargo \
 	CARGO_TARGET_$(RUST_TARGET_UPPER)_LINKER="$(TARGET_CC)" \
+	CC_$(RUST_TARGET_UPPER)="$(TARGET_CC)" \
 	cargo build -p harmony-node \
 		$(RUST_FEATURES) \
 		--target $(RUST_TARGET) \
