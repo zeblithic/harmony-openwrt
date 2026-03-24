@@ -132,8 +132,11 @@ uci -q delete firewall.harmony_node && uci commit firewall
 # Remove the HARMONY-MESH WiFi interface created by uci-defaults.
 if [ -n "$$(uci -q get wireless.harmony_mesh)" ]; then
   uci delete wireless.harmony_mesh
-  uci commit wireless
-  [ -x /sbin/wifi ] && wifi reload
+  if uci commit wireless; then
+    [ -x /sbin/wifi ] && wifi reload
+  else
+    logger -t "harmony-node" "WARNING: uci commit wireless failed during removal — harmony_mesh may persist"
+  fi
 fi
 exit 0
 endef
