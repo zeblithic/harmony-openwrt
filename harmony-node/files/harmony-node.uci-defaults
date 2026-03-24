@@ -16,7 +16,10 @@ if [ -z "$(uci -q get firewall.harmony_node)" ]; then
   uci set firewall.harmony_node=include
   uci set firewall.harmony_node.path='/etc/harmony-node.firewall'
   uci set firewall.harmony_node.reload='1'
-  uci commit firewall
+  if ! uci commit firewall; then
+    logger -t "$TAG" "ERROR: uci commit firewall failed — firewall include NOT registered"
+    exit 1
+  fi
   logger -t "$TAG" "registered firewall include"
 fi
 
