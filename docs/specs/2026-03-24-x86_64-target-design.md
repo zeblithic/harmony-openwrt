@@ -25,7 +25,7 @@ ifeq ($(ARCH),aarch64)
 else ifeq ($(ARCH),x86_64)
   RUST_TARGET:=x86_64-unknown-linux-musl
 else
-  # Sentinel — Build/Compile uses $(if ...) to error only when built.
+  # Sentinel — Build/Prepare uses $(if ...) to error only when built.
   RUST_TARGET:=unsupported-$(ARCH)
 endif
 ```
@@ -46,7 +46,7 @@ All 5 hardcoded references become `$(RUST_TARGET)`:
 1. `DEPENDS:=@(aarch64||x86_64)` — allow both in menuconfig
 2. `cargo fetch --target $(RUST_TARGET)` — fetch deps for target
 3. `CARGO_TARGET_<UPPER>_LINKER=$(TARGET_CC)` — dynamic linker env var
-4. `CC_<UPPER>=$(TARGET_CC)` — C compiler for `cc` crate (BLAKE3 SIMD assembly)
+4. `CC_<lowercase_triple_with_underscores>=$(TARGET_CC)` — C compiler for `cc` crate (BLAKE3 SIMD assembly)
 5. `cargo build $(RUST_FEATURES) --target $(RUST_TARGET)` — cross-compile
 6. `$(PKG_BUILD_DIR)/target/$(RUST_TARGET)/release-cross/harmony` — binary path
 
