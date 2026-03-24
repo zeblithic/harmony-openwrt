@@ -67,6 +67,8 @@ setup_harmony_network() {
   fi
 
   # Firewall rule: Reticulum (dynamic port, UDP)
+  # Always sync dest_port in case listen_address changed since first install.
+  CURRENT_RET_PORT="$(uci -q get firewall.harmony_reticulum.dest_port)"
   if [ -z "$(uci -q get firewall.harmony_reticulum)" ]; then
     uci set firewall.harmony_reticulum=rule
     uci set firewall.harmony_reticulum.name='Allow-Harmony-Reticulum'
@@ -75,6 +77,10 @@ setup_harmony_network() {
     uci set firewall.harmony_reticulum.proto='udp'
     uci set firewall.harmony_reticulum.target='ACCEPT'
     CREATED_FW="$CREATED_FW reticulum"
+  elif [ "$CURRENT_RET_PORT" != "$RET_PORT" ]; then
+    uci set firewall.harmony_reticulum.dest_port="$RET_PORT"
+    CREATED_FW="$CREATED_FW reticulum-port-sync"
+    logger -t "$TAG" "updated Reticulum firewall rule port: $CURRENT_RET_PORT → $RET_PORT"
   fi
 
   # Firewall rule: Zenoh (7446, UDP)

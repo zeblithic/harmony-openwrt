@@ -153,7 +153,7 @@ fi
 # 3. DHCP
 uci -q delete dhcp.harmony
 if uci commit dhcp; then
-  : # reloaded below with network
+  [ -x /etc/init.d/dnsmasq ] && /etc/init.d/dnsmasq reload
 else
   logger -t "harmony-node" "WARNING: uci commit dhcp failed during removal — harmony DHCP config may persist"
 fi
