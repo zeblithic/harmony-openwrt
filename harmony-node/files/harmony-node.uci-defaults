@@ -93,6 +93,7 @@ uci set wireless.harmony_mesh.encryption='sae'
 uci set wireless.harmony_mesh.key='ZEBLITHIC'
 uci set wireless.harmony_mesh.mesh_fwding='0'
 uci set wireless.harmony_mesh.mcast_rate='24000'
+uci set wireless.harmony_mesh.multicast_to_unicast='0'
 
 # Do NOT modify htmode — the radio's existing config determines whether
 # it runs in HE (WiFi 6), VHT (WiFi 5), or HT (WiFi 4) mode. Forcing
