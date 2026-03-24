@@ -214,8 +214,14 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
         logger -t "$TAG" "migrated wireless.harmony_mesh.network to harmony"
         # Reload order: network first (creates br-harmony in netifd),
         # then firewall (loads zone rules), then wifi (attaches VIF to bridge).
-        [ -x /etc/init.d/network ] && /etc/init.d/network reload
-        [ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+        if [ -x /etc/init.d/network ]; then
+          /etc/init.d/network reload || \
+            logger -t "$TAG" "WARNING: network reload failed after isolation backfill — br-harmony may not come up until reboot"
+        fi
+        if [ -x /etc/init.d/firewall ]; then
+          /etc/init.d/firewall reload || \
+            logger -t "$TAG" "WARNING: firewall reload failed after isolation backfill — harmony zone rules may not be active"
+        fi
         if [ -x /sbin/wifi ]; then
           if wifi reload 2>/tmp/harmony-wifi-reload.err; then
             logger -t "$TAG" "wifi reload succeeded — mesh active after isolation backfill"
@@ -331,8 +337,14 @@ logger -t "$TAG" "HARMONY-MESH configured on $MESH_RADIO"
 # then wifi (attaches mesh VIF to the bridge).
 # During early boot (ImageBuilder), services may not be ready yet — the
 # committed config takes effect when they start normally.
-[ -x /etc/init.d/network ] && /etc/init.d/network reload
-[ -x /etc/init.d/firewall ] && /etc/init.d/firewall reload
+if [ -x /etc/init.d/network ]; then
+  /etc/init.d/network reload || \
+    logger -t "$TAG" "WARNING: network reload failed — br-harmony may not come up until reboot"
+fi
+if [ -x /etc/init.d/firewall ]; then
+  /etc/init.d/firewall reload || \
+    logger -t "$TAG" "WARNING: firewall reload failed — harmony zone rules may not be active"
+fi
 if [ -x /sbin/wifi ]; then
   if wifi reload 2>/tmp/harmony-wifi-reload.err; then
     logger -t "$TAG" "wifi reload succeeded — mesh active"
