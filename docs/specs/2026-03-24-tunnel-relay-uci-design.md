@@ -23,8 +23,8 @@ Wire them into the init script using standard `config_get` and
 ```
 config harmony-node 'main'
     ...existing options...
-    option relay_url ''
-    list tunnel_peer ''
+    # option relay_url 'https://relay.example.com'
+    # list tunnel_peer '<identity_hash>:<node_id>[@relay_url]'
 ```
 
 - `relay_url`: iroh relay URL for NAT-traversal. Empty = disabled.
@@ -42,10 +42,11 @@ config_get relay_url main relay_url ''
     procd_append_param command --relay-url "$relay_url"
 
 # Tunnel peers (list → multiple --add-tunnel-peer flags)
-add_tunnel_peer_cb() {
+_harmony_add_tunnel_peer_cb() {
+    [ -n "$1" ] || return 0
     procd_append_param command --add-tunnel-peer "$1"
 }
-config_list_foreach main tunnel_peer add_tunnel_peer_cb
+config_list_foreach main tunnel_peer _harmony_add_tunnel_peer_cb
 ```
 
 ## File Changes
