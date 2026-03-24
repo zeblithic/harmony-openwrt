@@ -3,11 +3,19 @@
 # Installed as a firewall include — runs automatically on firewall reload.
 #
 # Supports both fw3 (iptables, OpenWRT <22.03) and fw4 (nftables, >=22.03).
-# Reads the port from UCI config so it tracks --listen-address changes.
-# Falls back to 4242 if not configured.
+#
+# Policy: Harmony protocol ports are OPEN on both LAN and WAN.
+# Harmony provides its own E2E encryption (Reticulum + ML-KEM + ML-DSA),
+# so there is no meaningful trust difference between LAN and WAN for
+# Harmony traffic. Non-Harmony traffic remains firewalled on WAN.
+#
+# Ports:
+#   UDP 4242       — Reticulum mesh packets
+#   UDP 7446       — Zenoh multicast scouting / peer discovery
+#   UDP 4433-4435  — iroh-net QUIC tunnels (relay + direct)
 
+# Read the Reticulum port from UCI config; fall back to 4242.
 HARMONY_PORT=$(uci -q get harmony-node.main.listen_address | sed 's/.*://')
-# Validate: numeric and within valid port range; fall back to 4242.
 case "$HARMONY_PORT" in
   ''|*[!0-9]*) HARMONY_PORT=4242 ;;
   *)
@@ -17,13 +25,35 @@ case "$HARMONY_PORT" in
 esac
 
 if command -v nft >/dev/null 2>&1 && nft list table inet fw4 >/dev/null 2>&1; then
-  # fw4 (nftables) — OpenWRT 22.03+
+  # ── fw4 (nftables) — OpenWRT 22.03+ ────────────────────────────────
+  # Reticulum — both LAN and WAN
   nft add rule inet fw4 input_lan udp dport "$HARMONY_PORT" accept
-  nft add rule inet fw4 input_wan udp dport "$HARMONY_PORT" drop
+  nft add rule inet fw4 input_wan udp dport "$HARMONY_PORT" accept
+
+  # Zenoh scouting — both LAN and WAN
+  nft add rule inet fw4 input_lan udp dport 7446 accept
+  nft add rule inet fw4 input_wan udp dport 7446 accept
+
+  # iroh-net QUIC tunnels — both LAN and WAN
+  nft add rule inet fw4 input_lan udp dport 4433-4435 accept
+  nft add rule inet fw4 input_wan udp dport 4433-4435 accept
 else
-  # fw3 (iptables) — OpenWRT <22.03
+  # ── fw3 (iptables) — OpenWRT <22.03 ────────────────────────────────
+  # Reticulum — both LAN and WAN
   iptables  -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
   ip6tables -A input_lan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
-  iptables  -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP
-  ip6tables -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j DROP
+  iptables  -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
+  ip6tables -A input_wan_rule -p udp --dport "$HARMONY_PORT" -j ACCEPT
+
+  # Zenoh scouting — both LAN and WAN
+  iptables  -A input_lan_rule -p udp --dport 7446 -j ACCEPT
+  ip6tables -A input_lan_rule -p udp --dport 7446 -j ACCEPT
+  iptables  -A input_wan_rule -p udp --dport 7446 -j ACCEPT
+  ip6tables -A input_wan_rule -p udp --dport 7446 -j ACCEPT
+
+  # iroh-net QUIC tunnels — both LAN and WAN
+  iptables  -A input_lan_rule -p udp --dport 4433:4435 -j ACCEPT
+  ip6tables -A input_lan_rule -p udp --dport 4433:4435 -j ACCEPT
+  iptables  -A input_wan_rule -p udp --dport 4433:4435 -j ACCEPT
+  ip6tables -A input_wan_rule -p udp --dport 4433:4435 -j ACCEPT
 fi

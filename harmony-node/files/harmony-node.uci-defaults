@@ -1,16 +1,104 @@
 #!/bin/sh
-# Register the harmony-node firewall include on first boot.
-# This script runs once via /etc/uci-defaults/ and handles both
-# ImageBuilder-built firmware and live opkg installs.
+# Harmony node first-boot setup.
+# Runs once via /etc/uci-defaults/ on first boot after install.
 #
-# Note: this script runs early in boot (before fw3/fw4 starts), so
-# it does NOT reload the firewall — the include takes effect when
-# the firewall service starts later in the boot sequence. For live
-# opkg installs, the postinst script handles the immediate reload.
+# 1. Registers the firewall include (if not already present)
+# 2. Auto-configures the HARMONY-MESH 802.11s WiFi mesh (if not already configured)
+#
+# For ImageBuilder firmware, this runs early in boot (before fw3/fw4).
+# The firewall include takes effect when the firewall service starts.
+# For live opkg installs, the postinst script handles immediate reload.
+
+TAG="harmony-node"
+
+# ── Firewall include registration ─────────────────────────────────────────
 if [ -z "$(uci -q get firewall.harmony_node)" ]; then
   uci set firewall.harmony_node=include
   uci set firewall.harmony_node.path='/etc/harmony-node.firewall'
   uci set firewall.harmony_node.reload='1'
   uci commit firewall
+  logger -t "$TAG" "registered firewall include"
 fi
+
+# ── HARMONY-MESH auto-configuration ──────────────────────────────────────
+# Skip if the mesh interface is already configured (manual setup or previous install).
+if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
+  logger -t "$TAG" "wireless.harmony_mesh already configured, skipping mesh auto-config"
+  exit 0
+fi
+
+# Determine which radio to use.
+# Priority: UCI override > auto-detect 5GHz > skip
+MESH_RADIO=""
+
+# Check for explicit override: harmony-node.mesh.radio
+OVERRIDE_RADIO="$(uci -q get harmony-node.mesh.radio)"
+if [ -n "$OVERRIDE_RADIO" ]; then
+  # Verify the override radio exists
+  if [ -n "$(uci -q get wireless."$OVERRIDE_RADIO")" ]; then
+    MESH_RADIO="$OVERRIDE_RADIO"
+    logger -t "$TAG" "using override radio: $MESH_RADIO"
+  else
+    logger -t "$TAG" "WARNING: override radio '$OVERRIDE_RADIO' not found, falling back to auto-detect"
+  fi
+fi
+
+# Auto-detect: find the first 5GHz radio
+if [ -z "$MESH_RADIO" ]; then
+  for radio in $(uci -q show wireless | grep '=wifi-device$' | cut -d. -f2 | cut -d= -f1); do
+    band="$(uci -q get wireless."$radio".band)"
+    if [ "$band" = "5g" ]; then
+      MESH_RADIO="$radio"
+      logger -t "$TAG" "auto-detected 5GHz radio: $MESH_RADIO"
+      break
+    fi
+  done
+fi
+
+# No radio found — skip mesh setup
+if [ -z "$MESH_RADIO" ]; then
+  logger -t "$TAG" "WARNING: no 5GHz radio found, skipping HARMONY-MESH auto-config. Set harmony-node.mesh.radio manually for other bands."
+  exit 0
+fi
+
+# ── Create the mesh VIF ───────────────────────────────────────────────────
+logger -t "$TAG" "configuring HARMONY-MESH on $MESH_RADIO"
+
+uci set wireless.harmony_mesh=wifi-iface
+uci set wireless.harmony_mesh.device="$MESH_RADIO"
+uci set wireless.harmony_mesh.mode='mesh'
+uci set wireless.harmony_mesh.network='lan'
+uci set wireless.harmony_mesh.mesh_id='HARMONY-MESH'
+uci set wireless.harmony_mesh.encryption='sae'
+uci set wireless.harmony_mesh.key='ZEBLITHIC'
+uci set wireless.harmony_mesh.mesh_fwding='0'
+uci set wireless.harmony_mesh.mcast_rate='24000'
+
+# Enable Wi-Fi 6 HE features on the radio (if not already set).
+# HE80 provides 80MHz channel width for high mesh throughput.
+# Beamformee improves signal quality to specific peers.
+current_htmode="$(uci -q get wireless."$MESH_RADIO".htmode)"
+case "$current_htmode" in
+  HE*|EHT*) ;; # Already HE or EHT mode, don't downgrade
+  *)
+    uci set wireless."$MESH_RADIO".htmode='HE80'
+    logger -t "$TAG" "set $MESH_RADIO htmode to HE80"
+    ;;
+esac
+
+# Enable beamformee if not already set
+if [ -z "$(uci -q get wireless."$MESH_RADIO".he_su_beamformee)" ]; then
+  uci set wireless."$MESH_RADIO".he_su_beamformee='1'
+fi
+
+uci commit wireless
+logger -t "$TAG" "HARMONY-MESH configured on $MESH_RADIO — mesh will activate on next wifi reload"
+
+# Trigger wifi reload if the wireless subsystem is available.
+# During early boot (ImageBuilder), wifi may not be ready yet — the
+# committed config takes effect when wireless starts normally.
+if [ -x /sbin/wifi ]; then
+  wifi reload 2>/dev/null
+fi
+
 exit 0

@@ -1,5 +1,12 @@
 # Mesh WiFi Setup for Harmony on OpenWRT
 
+> **Note:** As of v0.2.0, the harmony-node package **automatically configures**
+> the HARMONY-MESH interface on first install. The auto-config detects the 5GHz
+> radio, creates the mesh VIF with SSID `HARMONY-MESH` and PSK `ZEBLITHIC`,
+> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, HE80).
+> **You only need this guide if** you want to customize the configuration, use
+> a different radio, or troubleshoot mesh issues.
+
 This guide configures an 802.11s mesh interface on MediaTek MT7996 (Filogic 880)
 routers running OpenWRT 23.x/24.x for Harmony mesh networking.
 
