@@ -3,7 +3,7 @@
 > **Note:** As of v0.2.0, the harmony-node package **automatically configures**
 > the HARMONY-MESH interface on first install. The auto-config detects the 5GHz
 > radio, creates the mesh VIF with SSID `HARMONY-MESH` and PSK `ZEBLITHIC`,
-> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, multicast_to_unicast=0, powersave=0, network='harmony' (isolated from LAN)).
+> and applies all recommended tunings (mesh_fwding=0, mcast_rate=24000, multicast_to_unicast=0, powersave=0, mesh_rssi_threshold=-70, he_bss_color=37, network='harmony' (isolated from LAN)).
 > `htmode` is intentionally left at the radio's existing value (see below
 > to enable HE80 manually on WiFi 6 hardware).
 > **You only need this guide if** you want to customize the configuration, use
@@ -81,7 +81,7 @@ config wifi-device 'radio1'
     option channel '36'
     option htmode 'HE80'
     option cell_density '0'
-    # option he_bss_color '<unique 1-63 per node, or omit for auto>'
+    option he_bss_color '37'
     option he_su_beamformee '1'
 
 # ── Existing AP Interface (keep this for client devices) ────────────
@@ -128,8 +128,9 @@ uci set wireless.harmony_mesh.powersave='0'
 
 # Enable HE features on the radio (if not already set)
 uci set wireless.radio1.htmode='HE80'
-# Set a unique BSS color per node (1-63) for spatial reuse, or omit for auto:
-# uci set wireless.radio1.he_bss_color='<unique per node>'
+# BSS Color 37: unified across all Harmony mesh nodes (auto-configured).
+# Only change if you have a specific reason to use a different value.
+uci set wireless.radio1.he_bss_color='37'
 uci set wireless.radio1.he_su_beamformee='1'
 
 uci commit wireless
@@ -143,7 +144,7 @@ wifi reload
 | Option | Value | Why |
 |--------|-------|-----|
 | `htmode 'HE80'` | Wi-Fi 6 HE, 80 MHz width | High throughput for mesh + AP on 5 GHz |
-| `he_bss_color` | Unique value 1-63 per node (or omit) | Spatial reuse — must differ between adjacent nodes |
+| `he_bss_color '37'` | Unified Harmony BSS color | Spatial reuse against non-Harmony networks; mesh peers cooperate on CSMA/CA |
 | `he_su_beamformee '1'` | Beamforming | Improved signal quality to specific peers |
 
 **Interface-level options** (in `config wifi-iface`):
@@ -158,6 +159,7 @@ wifi reload
 | `mcast_rate '24000'` | 24 Mbps broadcast floor | Prevents airtime starvation from low-rate broadcasts |
 | `multicast_to_unicast '0'` | **Disable mcast→unicast** | Prevents N×airtime from per-peer unicast conversion |
 | `powersave '0'` | **Disable power save** | Routers are always-on — power save adds DTIM buffering latency |
+| `mesh_rssi_threshold '-70'` | Min signal for peering | Reject weak-signal peers below -70 dBm (complements mcast_rate) |
 
 ### Why disable mesh_fwding
 
