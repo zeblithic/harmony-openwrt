@@ -194,7 +194,7 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
   fi
   # BSS Color on the radio (not the VIF) — need to find which radio the mesh is on.
   MESH_RADIO_BF="$(uci -q get wireless.harmony_mesh.device)"
-  if [ -n "$MESH_RADIO_BF" ] && [ -z "$(uci -q get wireless."$MESH_RADIO_BF".he_bss_color)" ]; then
+  if [ -n "$MESH_RADIO_BF" ] && [ "$(uci -q get wireless."$MESH_RADIO_BF".he_bss_color)" != "37" ]; then
     if uci set wireless."$MESH_RADIO_BF".he_bss_color='37'; then
       BACKFILL="$BACKFILL he_bss_color=37"
     else
