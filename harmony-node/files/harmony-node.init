@@ -9,8 +9,12 @@ TOML_FILE="/tmp/harmony-node.toml"
 # Convert UCI bool (1/0) to TOML bool (true/false).
 _bool() { if [ "$1" -eq 1 ] 2>/dev/null; then echo "true"; else echo "false"; fi; }
 
-# Sanitize a string for TOML double-quoted values (strip embedded double-quotes).
-_toml_str() { echo "$1" | tr -d '"'; }
+# Escape a string for TOML double-quoted values (\ → \\, " → \").
+# Uses printf to avoid busybox echo swallowing -n/-e prefixed values.
+_toml_str() { printf '%s\n' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+# Validate a UCI value is a non-negative integer; return default if not.
+_int() { case "$1" in ''|*[!0-9]*) echo "$2" ;; *) echo "$1" ;; esac; }
 
 start_service() {
 	local enabled identity_file listen_address
@@ -39,8 +43,14 @@ start_service() {
 	config_get relay_url main relay_url ''
 
 	# Sanitize string values for TOML double-quoted interpolation.
+	# Sanitize strings and validate integers before TOML generation.
 	listen_address="$(_toml_str "$listen_address")"
 	identity_file="$(_toml_str "$identity_file")"
+	cache_capacity="$(_int "$cache_capacity" 256)"
+	compute_budget="$(_int "$compute_budget" 100000)"
+	filter_broadcast_ticks="$(_int "$filter_broadcast_ticks" 30)"
+	filter_mutation_threshold="$(_int "$filter_mutation_threshold" 100)"
+	mdns_stale_timeout="$(_int "$mdns_stale_timeout" 60)"
 
 	# ── Generate TOML config ────────────────────────────────────────────
 	cat > "$TOML_FILE" <<-EOF
