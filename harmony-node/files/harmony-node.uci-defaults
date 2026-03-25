@@ -185,6 +185,22 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
       logger -t "$TAG" "ERROR: uci set powersave failed"
     fi
   fi
+  if [ -z "$(uci -q get wireless.harmony_mesh.mesh_rssi_threshold)" ]; then
+    if uci set wireless.harmony_mesh.mesh_rssi_threshold='-70'; then
+      BACKFILL="$BACKFILL mesh_rssi_threshold=-70"
+    else
+      logger -t "$TAG" "ERROR: uci set mesh_rssi_threshold failed"
+    fi
+  fi
+  # BSS Color on the radio (not the VIF) — need to find which radio the mesh is on.
+  MESH_RADIO_BF="$(uci -q get wireless.harmony_mesh.device)"
+  if [ -n "$MESH_RADIO_BF" ] && [ -z "$(uci -q get wireless."$MESH_RADIO_BF".he_bss_color)" ]; then
+    if uci set wireless."$MESH_RADIO_BF".he_bss_color='37'; then
+      BACKFILL="$BACKFILL he_bss_color=37"
+    else
+      logger -t "$TAG" "ERROR: uci set he_bss_color failed"
+    fi
+  fi
   if [ -n "$BACKFILL" ]; then
     if uci commit wireless; then
       logger -t "$TAG" "backfilled:$BACKFILL"
@@ -311,6 +327,7 @@ uci set wireless.harmony_mesh.mesh_fwding='0'
 uci set wireless.harmony_mesh.mcast_rate='24000'
 uci set wireless.harmony_mesh.multicast_to_unicast='0'
 uci set wireless.harmony_mesh.powersave='0'
+uci set wireless.harmony_mesh.mesh_rssi_threshold='-70'
 
 # multicast_to_unicast is an AP-mode hostapd feature; on mesh VIFs it may
 # be a no-op in some wpad builds, but setting it to '0' is never harmful.
@@ -319,6 +336,16 @@ uci set wireless.harmony_mesh.powersave='0'
 # powersave: wpa_supplicant applies PS in mesh mode when built with
 # CONFIG_MESH. Setting '0' disables DTIM buffering on always-on routers.
 # Verify with: iw dev <mesh_if> get power_save → Power save: off
+#
+# mesh_rssi_threshold: reject peering with nodes below -70 dBm. Complements
+# mcast_rate=24000 (which culls at frame level) by preventing peering
+# establishment with weak-signal nodes in the first place.
+
+# ── Radio-level tunings ─────────────────────────────────────────────────
+# BSS Color 37: unified across all Harmony mesh nodes for CSMA/CA cooperation.
+# Spatial reuse applies against non-Harmony networks using different colors.
+# Silently ignored on non-Wi-Fi-6 radios (802.11ax feature).
+uci set wireless."$MESH_RADIO".he_bss_color='37'
 
 # Do NOT modify htmode — the radio's existing config determines whether
 # it runs in HE (WiFi 6), VHT (WiFi 5), or HT (WiFi 4) mode. Forcing
