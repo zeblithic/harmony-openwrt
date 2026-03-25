@@ -7,7 +7,10 @@ USE_PROCD=1
 TOML_FILE="/tmp/harmony-node.toml"
 
 # Convert UCI bool (1/0) to TOML bool (true/false).
-_bool() { [ "$1" -eq 1 ] 2>/dev/null && echo "true" || echo "false"; }
+_bool() { if [ "$1" -eq 1 ] 2>/dev/null; then echo "true"; else echo "false"; fi; }
+
+# Sanitize a string for TOML double-quoted values (strip embedded double-quotes).
+_toml_str() { echo "$1" | tr -d '"'; }
 
 start_service() {
 	local enabled identity_file listen_address
@@ -35,6 +38,10 @@ start_service() {
 	config_get mdns_stale_timeout main mdns_stale_timeout 60
 	config_get relay_url main relay_url ''
 
+	# Sanitize string values for TOML double-quoted interpolation.
+	listen_address="$(_toml_str "$listen_address")"
+	identity_file="$(_toml_str "$identity_file")"
+
 	# ── Generate TOML config ────────────────────────────────────────────
 	cat > "$TOML_FILE" <<-EOF
 	listen_address = "$listen_address"
@@ -47,17 +54,24 @@ start_service() {
 	encrypted_durable_announce = $(_bool "$encrypted_durable_announce")
 	no_public_ephemeral_announce = $(_bool "$no_public_ephemeral_announce")
 	no_mdns = $(_bool "$no_mdns")
-	mdns_stale_timeout = $mdns_stale_timeout
 	EOF
 
+	# mdns_stale_timeout: only emit when mDNS is enabled (matches old CLI behavior).
+	[ "$no_mdns" -ne 1 ] && echo "mdns_stale_timeout = $mdns_stale_timeout" >> "$TOML_FILE"
+
 	# relay_url: only emit if non-empty (TOML Option<String> = absent when unset).
-	[ -n "$relay_url" ] && echo "relay_url = \"$relay_url\"" >> "$TOML_FILE"
+	if [ -n "$relay_url" ]; then
+		relay_url="$(_toml_str "$relay_url")"
+		echo "relay_url = \"$relay_url\"" >> "$TOML_FILE"
+	fi
 
 	# Tunnel peers: UCI list → [[tunnels]] sections.
 	# UCI format is just a node_id hex string (matching TOML TunnelEntry).
 	_harmony_emit_tunnel_cb() {
 		[ -n "$1" ] || return 0
-		printf '\n[[tunnels]]\nnode_id = "%s"\n' "$1" >> "$TOML_FILE"
+		local node_id
+		node_id="$(_toml_str "$1")"
+		printf '\n[[tunnels]]\nnode_id = "%s"\n' "$node_id" >> "$TOML_FILE"
 	}
 	config_list_foreach main tunnel_peer _harmony_emit_tunnel_cb
 
