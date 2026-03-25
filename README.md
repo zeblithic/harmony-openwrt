@@ -93,7 +93,7 @@ uci commit harmony-node
 | `encrypted_durable_announce` | `0` | Announce encrypted durable content |
 | `no_public_ephemeral_announce` | `0` | Disable public ephemeral announcements |
 | `relay_url` | *(empty)* | iroh relay URL for NAT-traversal tunnels (enables tunnel accept) |
-| `tunnel_peer` | *(list)* | Tunnel peer specs: `<identity_hash>:<node_id>[@relay_url]` (repeatable) |
+| `tunnel_peer` | *(list)* | Tunnel peer node IDs (hex, repeatable) |
 
 Edit with `uci`:
 
@@ -108,6 +108,10 @@ Or edit `/etc/config/harmony-node` directly and restart:
 ```bash
 /etc/init.d/harmony-node restart
 ```
+
+The init script generates `/tmp/harmony-node.toml` from UCI options on each service
+start and passes `--config /tmp/harmony-node.toml` to the binary. Always configure
+via UCI — do not edit the generated TOML directly (it is overwritten on restart).
 
 ## Mesh WiFi (Auto-Configured)
 
