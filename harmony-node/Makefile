@@ -94,7 +94,8 @@ define Package/harmony-node/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/harmony-node.conf $(1)/etc/config/harmony-node
 
-	install -d -m 0700 $(1)/etc/harmony
+	install -d -m 0750 $(1)/etc/harmony
+	chown 473:473 $(1)/etc/harmony 2>/dev/null || true
 
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DATA) ./files/harmony-node.keep $(1)/lib/upgrade/keep.d/harmony-node
@@ -108,11 +109,41 @@ endef
 
 define Package/harmony-node/postinst
 #!/bin/sh
-# Skip during ImageBuilder / offline-root installs — UCI writes would
-# target the build host, not the device. For ImageBuilder images, the
-# /etc/uci-defaults/99-harmony-node-setup script handles all UCI
-# registration on first device boot instead.
+# Create harmony system user/group (UID/GID 473, no login shell).
+# Runs in BOTH ImageBuilder and live-install contexts — writes to
+# $$IPKG_INSTROOT prefix (empty for live, set for ImageBuilder).
+# Idempotent: skips if user name or UID 473 already exists.
+_PASSWD="$${IPKG_INSTROOT}/etc/passwd"
+_GROUP="$${IPKG_INSTROOT}/etc/group"
+if ! grep -q '^harmony:' "$$_PASSWD" 2>/dev/null && \
+   ! grep -q ':473:' "$$_PASSWD" 2>/dev/null; then
+  echo 'harmony:x:473:473:harmony:/var/lib/harmony:/bin/false' >> "$$_PASSWD"
+fi
+if ! grep -q '^harmony:' "$$_GROUP" 2>/dev/null && \
+   ! grep -q ':473:' "$$_GROUP" 2>/dev/null; then
+  echo 'harmony:x:473:' >> "$$_GROUP"
+fi
+
+# Own the identity key directory so the unprivileged process can read it.
+# ImageBuilder: use numeric UID 473 (username resolves against build host, not target).
+# If a 'harmony' user already exists with a different UID in the base image,
+# this chown will be incorrect — an extremely unlikely edge case.
+chown -R 473:473 "$${IPKG_INSTROOT}/etc/harmony" 2>/dev/null || true
+
+# Skip remaining steps during ImageBuilder — UCI writes would target
+# the build host, not the device.
 [ -n "$$IPKG_INSTROOT" ] && exit 0
+
+# Live install: fix /etc/harmony ownership by name (resolves correctly
+# on the running system, unlike the numeric ImageBuilder path above).
+chown -R harmony:harmony /etc/harmony
+
+# Create and own volatile data directory (lost on reboot if /var → tmpfs).
+# Also recreated in start_service() for reboot resilience.
+mkdir -p /var/lib/harmony
+chown harmony:harmony /var/lib/harmony
+chmod 750 /var/lib/harmony
+
 # Run the uci-defaults script directly for live installs.
 # It is fully idempotent (skips firewall/mesh setup if already configured)
 # and handles both firewall include registration and HARMONY-MESH VIF creation.
@@ -146,7 +177,10 @@ define Package/harmony-node/postrm
 case "$$1" in
   upgrade) exit 0 ;;
 esac
-rm -rf /etc/harmony
+rm -rf /etc/harmony /var/lib/harmony
+# Remove harmony system user/group (best-effort).
+sed -i '/^harmony:/d' /etc/passwd 2>/dev/null
+sed -i '/^harmony:/d' /etc/group 2>/dev/null
 # Remove all harmony UCI configuration.
 # Order: wireless first (disconnect mesh peers before changing firewall),
 # then firewall (zone + rules + include), then network/DHCP.
