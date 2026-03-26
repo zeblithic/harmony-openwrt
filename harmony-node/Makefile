@@ -113,6 +113,23 @@ define Package/harmony-node/postinst
 # /etc/uci-defaults/99-harmony-node-setup script handles all UCI
 # registration on first device boot instead.
 [ -n "$$IPKG_INSTROOT" ] && exit 0
+
+# Create harmony system user/group (UID/GID 473, no login shell).
+# Idempotent — skips if already exists.
+id harmony >/dev/null 2>&1 || {
+  echo 'harmony:x:473:473:harmony:/var/lib/harmony:/bin/false' >> /etc/passwd
+  echo 'harmony:x:473:' >> /etc/group
+}
+
+# Create and own data directory for CAS content and persistent state.
+mkdir -p /var/lib/harmony
+chown harmony:harmony /var/lib/harmony
+chmod 750 /var/lib/harmony
+
+# Own the identity key directory so the unprivileged process can read it.
+chown -R harmony:harmony /etc/harmony
+chmod 750 /etc/harmony
+
 # Run the uci-defaults script directly for live installs.
 # It is fully idempotent (skips firewall/mesh setup if already configured)
 # and handles both firewall include registration and HARMONY-MESH VIF creation.
@@ -146,7 +163,10 @@ define Package/harmony-node/postrm
 case "$$1" in
   upgrade) exit 0 ;;
 esac
-rm -rf /etc/harmony
+rm -rf /etc/harmony /var/lib/harmony
+# Remove harmony system user/group (best-effort).
+sed -i '/^harmony:/d' /etc/passwd 2>/dev/null
+sed -i '/^harmony:/d' /etc/group 2>/dev/null
 # Remove all harmony UCI configuration.
 # Order: wireless first (disconnect mesh peers before changing firewall),
 # then firewall (zone + rules + include), then network/DHCP.
