@@ -44,7 +44,7 @@ define Package/harmony-node
   CATEGORY:=Network
   TITLE:=Harmony decentralized mesh node
   URL:=https://github.com/zeblithic/harmony
-  DEPENDS:=@(aarch64||x86_64)
+  DEPENDS:=@(aarch64||x86_64) +block-mount
 endef
 
 define Package/harmony-node/description
