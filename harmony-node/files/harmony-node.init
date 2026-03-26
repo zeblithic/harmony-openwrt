@@ -23,7 +23,7 @@ start_service() {
 	local encrypted_durable_persist encrypted_durable_announce
 	local no_public_ephemeral_announce
 	local no_mdns mdns_stale_timeout
-	local relay_url
+	local relay_url storage_path
 
 	config_load harmony-node
 	config_get_bool enabled main enabled 1
@@ -41,6 +41,7 @@ start_service() {
 	config_get_bool no_mdns main no_mdns 0
 	config_get mdns_stale_timeout main mdns_stale_timeout 60
 	config_get relay_url main relay_url ''
+	config_get storage_path main storage_path ''
 
 	# Sanitize string values for TOML double-quoted interpolation.
 	# Sanitize strings and validate integers before TOML generation.
@@ -85,11 +86,39 @@ start_service() {
 	}
 	config_list_foreach main tunnel_peer _harmony_emit_tunnel_cb
 
-	# ── Launch via procd ────────────────────────────────────────────────
-	# Recreate volatile data directory (/var → /tmp tmpfs on standard OpenWRT).
-	mkdir -p /var/lib/harmony
-	chown harmony:harmony /var/lib/harmony
-	chmod 750 /var/lib/harmony
+	# ── Detect persistent storage ───────────────────────────────────────
+	# Priority: UCI storage_path > USB label HARMONY > volatile fallback.
+	local data_dir="/var/lib/harmony"
+	if [ "$storage_path" = "none" ]; then
+		# Explicitly disabled — use volatile only.
+		data_dir="/var/lib/harmony"
+	elif [ -n "$storage_path" ]; then
+		# UCI override — use the specified path directly.
+		data_dir="$storage_path"
+		logger -t "harmony-node" "Using configured storage path: $data_dir"
+	else
+		# Auto-detect: look for USB partition labeled HARMONY.
+		local usb_dev
+		usb_dev="$(block info 2>/dev/null | grep 'LABEL="HARMONY"' | sed 's/:.*//' | head -1)"
+		if [ -n "$usb_dev" ]; then
+			local usb_path
+			usb_path="$(block info "$usb_dev" 2>/dev/null | grep -o 'MOUNT="[^"]*"' | sed 's/MOUNT="//;s/"//')"
+			if [ -n "$usb_path" ] && mountpoint -q "$usb_path" 2>/dev/null; then
+				data_dir="$usb_path/harmony"
+				logger -t "harmony-node" "USB storage detected at $usb_path, using $data_dir"
+			fi
+		fi
+	fi
+
+	# Ensure data directory exists with correct ownership.
+	mkdir -p "$data_dir"
+	chown harmony:harmony "$data_dir"
+	chmod 750 "$data_dir"
+
+	# TODO(harmony-0vu): Once harmony-node supports data_dir in its TOML config,
+	# emit it here:
+	#   echo "data_dir = \"$(_toml_str "$data_dir")\"" >> "$TOML_FILE"
+	# Until then, the directory is prepared but not used by the binary.
 
 	procd_open_instance
 	procd_set_param command /usr/bin/harmony run --config "$TOML_FILE"
