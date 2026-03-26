@@ -53,41 +53,10 @@ start_service() {
 	filter_mutation_threshold="$(_int "$filter_mutation_threshold" 100)"
 	mdns_stale_timeout="$(_int "$mdns_stale_timeout" 60)"
 
-	# ── Generate TOML config ────────────────────────────────────────────
-	cat > "$TOML_FILE" <<-EOF
-	listen_address = "$listen_address"
-	identity_file = "$identity_file"
-	cache_capacity = $cache_capacity
-	compute_budget = $compute_budget
-	filter_broadcast_ticks = $filter_broadcast_ticks
-	filter_mutation_threshold = $filter_mutation_threshold
-	encrypted_durable_persist = $(_bool "$encrypted_durable_persist")
-	encrypted_durable_announce = $(_bool "$encrypted_durable_announce")
-	no_public_ephemeral_announce = $(_bool "$no_public_ephemeral_announce")
-	no_mdns = $(_bool "$no_mdns")
-	EOF
-
-	# mdns_stale_timeout: only emit when mDNS is enabled (matches old CLI behavior).
-	[ "$no_mdns" -ne 1 ] && echo "mdns_stale_timeout = $mdns_stale_timeout" >> "$TOML_FILE"
-
-	# relay_url: only emit if non-empty (TOML Option<String> = absent when unset).
-	if [ -n "$relay_url" ]; then
-		relay_url="$(_toml_str "$relay_url")"
-		echo "relay_url = \"$relay_url\"" >> "$TOML_FILE"
-	fi
-
-	# Tunnel peers: UCI list → [[tunnels]] sections.
-	# UCI format is just a node_id hex string (matching TOML TunnelEntry).
-	_harmony_emit_tunnel_cb() {
-		[ -n "$1" ] || return 0
-		local node_id
-		node_id="$(_toml_str "$1")"
-		printf '\n[[tunnels]]\nnode_id = "%s"\n' "$node_id" >> "$TOML_FILE"
-	}
-	config_list_foreach main tunnel_peer _harmony_emit_tunnel_cb
-
 	# ── Detect persistent storage ───────────────────────────────────────
 	# Priority: UCI storage_path > USB label HARMONY > volatile fallback.
+	# Resolved BEFORE TOML generation so data_dir can be emitted as a
+	# root-level key (must come before any [[tunnels]] sections).
 	local data_dir="/var/lib/harmony"
 	if [ "$storage_path" = "none" ]; then
 		# Explicitly disabled — use volatile only.
@@ -114,7 +83,6 @@ start_service() {
 	fi
 
 	# Always recreate the volatile home directory (/var → /tmp tmpfs).
-	# This is the harmony user's home and the binary's default path.
 	mkdir -p /var/lib/harmony
 	chown harmony:harmony /var/lib/harmony
 	chmod 750 /var/lib/harmony
@@ -130,10 +98,43 @@ start_service() {
 		fi
 	fi
 
-	# TODO(harmony-0vu): Once harmony-node supports data_dir in its TOML config,
-	# emit it here:
-	#   echo "data_dir = \"$(_toml_str "$data_dir")\"" >> "$TOML_FILE"
-	# Until then, the directory is prepared but not used by the binary.
+	# ── Generate TOML config ────────────────────────────────────────────
+	cat > "$TOML_FILE" <<-EOF
+	listen_address = "$listen_address"
+	identity_file = "$identity_file"
+	cache_capacity = $cache_capacity
+	compute_budget = $compute_budget
+	filter_broadcast_ticks = $filter_broadcast_ticks
+	filter_mutation_threshold = $filter_mutation_threshold
+	encrypted_durable_persist = $(_bool "$encrypted_durable_persist")
+	encrypted_durable_announce = $(_bool "$encrypted_durable_announce")
+	no_public_ephemeral_announce = $(_bool "$no_public_ephemeral_announce")
+	no_mdns = $(_bool "$no_mdns")
+	EOF
+
+	# mdns_stale_timeout: only emit when mDNS is enabled (matches old CLI behavior).
+	[ "$no_mdns" -ne 1 ] && echo "mdns_stale_timeout = $mdns_stale_timeout" >> "$TOML_FILE"
+
+	# relay_url: only emit if non-empty (TOML Option<String> = absent when unset).
+	if [ -n "$relay_url" ]; then
+		relay_url="$(_toml_str "$relay_url")"
+		echo "relay_url = \"$relay_url\"" >> "$TOML_FILE"
+	fi
+
+	# data_dir: emit the resolved storage path so the binary persists CAS books.
+	# Must come BEFORE [[tunnels]] sections — TOML keys after a [[section]]
+	# header belong to that section, not the root table.
+	echo "data_dir = \"$(_toml_str "$data_dir")\"" >> "$TOML_FILE"
+
+	# Tunnel peers: UCI list → [[tunnels]] sections.
+	# UCI format is just a node_id hex string (matching TOML TunnelEntry).
+	_harmony_emit_tunnel_cb() {
+		[ -n "$1" ] || return 0
+		local node_id
+		node_id="$(_toml_str "$1")"
+		printf '\n[[tunnels]]\nnode_id = "%s"\n' "$node_id" >> "$TOML_FILE"
+	}
+	config_list_foreach main tunnel_peer _harmony_emit_tunnel_cb
 
 	procd_open_instance
 	procd_set_param command /usr/bin/harmony run --config "$TOML_FILE"
