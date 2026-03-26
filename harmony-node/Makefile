@@ -95,6 +95,7 @@ define Package/harmony-node/install
 	$(INSTALL_CONF) ./files/harmony-node.conf $(1)/etc/config/harmony-node
 
 	install -d -m 0750 $(1)/etc/harmony
+	chown 473:473 $(1)/etc/harmony 2>/dev/null || true
 
 	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
 	$(INSTALL_DATA) ./files/harmony-node.keep $(1)/lib/upgrade/keep.d/harmony-node
@@ -124,7 +125,8 @@ fi
 
 # Own the identity key directory so the unprivileged process can read it.
 # Works for both live (/etc/harmony) and ImageBuilder ($$IPKG_INSTROOT/etc/harmony).
-chown -R harmony:harmony "$${IPKG_INSTROOT}/etc/harmony" 2>/dev/null || true
+# Use numeric UID/GID — username resolves against build host passwd, not target.
+chown -R 473:473 "$${IPKG_INSTROOT}/etc/harmony" 2>/dev/null || true
 
 # Skip remaining steps during ImageBuilder — UCI writes would target
 # the build host, not the device.
