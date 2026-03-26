@@ -86,6 +86,11 @@ start_service() {
 	config_list_foreach main tunnel_peer _harmony_emit_tunnel_cb
 
 	# ── Launch via procd ────────────────────────────────────────────────
+	# Recreate volatile data directory (/var → /tmp tmpfs on standard OpenWRT).
+	mkdir -p /var/lib/harmony
+	chown harmony:harmony /var/lib/harmony
+	chmod 750 /var/lib/harmony
+
 	procd_open_instance
 	procd_set_param command /usr/bin/harmony run --config "$TOML_FILE"
 	procd_set_param file "$TOML_FILE"
