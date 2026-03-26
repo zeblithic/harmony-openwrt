@@ -119,7 +119,8 @@ if ! grep -q '^harmony:' "$$_PASSWD" 2>/dev/null && \
    ! grep -q ':473:' "$$_PASSWD" 2>/dev/null; then
   echo 'harmony:x:473:473:harmony:/var/lib/harmony:/bin/false' >> "$$_PASSWD"
 fi
-if ! grep -q '^harmony:' "$$_GROUP" 2>/dev/null; then
+if ! grep -q '^harmony:' "$$_GROUP" 2>/dev/null && \
+   ! grep -q ':473:' "$$_GROUP" 2>/dev/null; then
   echo 'harmony:x:473:' >> "$$_GROUP"
 fi
 
