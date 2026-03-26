@@ -98,20 +98,28 @@ start_service() {
 		logger -t "harmony-node" "Using configured storage path: $data_dir"
 	else
 		# Auto-detect: look for USB partition labeled HARMONY.
-		local usb_dev
-		usb_dev="$(block info 2>/dev/null | grep 'LABEL="HARMONY"' | sed 's/:.*//' | head -1)"
+		# Extract device and mount path from a single block info call.
+		local usb_info usb_dev usb_path
+		usb_info="$(block info 2>/dev/null | grep 'LABEL="HARMONY"' | head -1)"
+		usb_dev="$(printf '%s\n' "$usb_info" | sed 's/:.*//')"
 		if [ -n "$usb_dev" ]; then
-			local usb_path
-			usb_path="$(block info "$usb_dev" 2>/dev/null | grep -o 'MOUNT="[^"]*"' | sed 's/MOUNT="//;s/"//')"
+			usb_path="$(printf '%s\n' "$usb_info" | grep -o 'MOUNT="[^"]*"' | sed 's/MOUNT="//;s/"//')"
 			if [ -n "$usb_path" ] && mountpoint -q "$usb_path" 2>/dev/null; then
 				data_dir="$usb_path/harmony"
 				logger -t "harmony-node" "USB storage detected at $usb_path, using $data_dir"
+			else
+				logger -t "harmony-node" "WARNING: HARMONY USB found ($usb_dev) but not mounted, using volatile storage"
 			fi
 		fi
 	fi
 
 	# Ensure data directory exists with correct ownership.
-	mkdir -p "$data_dir"
+	# Fall back to volatile if creation fails (e.g., read-only USB).
+	if ! mkdir -p "$data_dir" 2>/dev/null; then
+		logger -t "harmony-node" "ERROR: failed to create $data_dir, falling back to /var/lib/harmony"
+		data_dir="/var/lib/harmony"
+		mkdir -p "$data_dir"
+	fi
 	chown harmony:harmony "$data_dir"
 	chmod 750 "$data_dir"
 
