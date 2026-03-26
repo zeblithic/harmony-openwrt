@@ -125,13 +125,18 @@ if ! grep -q '^harmony:' "$$_GROUP" 2>/dev/null && \
 fi
 
 # Own the identity key directory so the unprivileged process can read it.
-# Works for both live (/etc/harmony) and ImageBuilder ($$IPKG_INSTROOT/etc/harmony).
-# Use numeric UID/GID — username resolves against build host passwd, not target.
+# ImageBuilder: use numeric UID 473 (username resolves against build host, not target).
+# If a 'harmony' user already exists with a different UID in the base image,
+# this chown will be incorrect — an extremely unlikely edge case.
 chown -R 473:473 "$${IPKG_INSTROOT}/etc/harmony" 2>/dev/null || true
 
 # Skip remaining steps during ImageBuilder — UCI writes would target
 # the build host, not the device.
 [ -n "$$IPKG_INSTROOT" ] && exit 0
+
+# Live install: fix /etc/harmony ownership by name (resolves correctly
+# on the running system, unlike the numeric ImageBuilder path above).
+chown -R harmony:harmony /etc/harmony
 
 # Create and own volatile data directory (lost on reboot if /var → tmpfs).
 # Also recreated in start_service() for reboot resilience.
