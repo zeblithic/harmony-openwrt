@@ -130,10 +130,8 @@ start_service() {
 		fi
 	fi
 
-	# TODO(harmony-0vu): Once harmony-node supports data_dir in its TOML config,
-	# emit it here:
-	#   echo "data_dir = \"$(_toml_str "$data_dir")\"" >> "$TOML_FILE"
-	# Until then, the directory is prepared but not used by the binary.
+	# data_dir: emit the resolved storage path so the binary persists CAS books.
+	echo "data_dir = \"$(_toml_str "$data_dir")\"" >> "$TOML_FILE"
 
 	procd_open_instance
 	procd_set_param command /usr/bin/harmony run --config "$TOML_FILE"
