@@ -113,15 +113,22 @@ start_service() {
 		fi
 	fi
 
-	# Ensure data directory exists with correct ownership.
-	# Fall back to volatile if creation fails (e.g., read-only USB).
-	if ! mkdir -p "$data_dir" 2>/dev/null; then
-		logger -t "harmony-node" "ERROR: failed to create $data_dir, falling back to /var/lib/harmony"
-		data_dir="/var/lib/harmony"
-		mkdir -p "$data_dir"
+	# Always recreate the volatile home directory (/var → /tmp tmpfs).
+	# This is the harmony user's home and the binary's default path.
+	mkdir -p /var/lib/harmony
+	chown harmony:harmony /var/lib/harmony
+	chmod 750 /var/lib/harmony
+
+	# Additionally create the USB/override data directory if different.
+	if [ "$data_dir" != "/var/lib/harmony" ]; then
+		if ! mkdir -p "$data_dir" 2>/dev/null; then
+			logger -t "harmony-node" "ERROR: failed to create $data_dir, falling back to /var/lib/harmony"
+			data_dir="/var/lib/harmony"
+		else
+			chown harmony:harmony "$data_dir"
+			chmod 750 "$data_dir"
+		fi
 	fi
-	chown harmony:harmony "$data_dir"
-	chmod 750 "$data_dir"
 
 	# TODO(harmony-0vu): Once harmony-node supports data_dir in its TOML config,
 	# emit it here:
