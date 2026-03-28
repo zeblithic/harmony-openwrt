@@ -115,9 +115,44 @@ test_defaults() {
         --check-absent tunnels
 }
 
+# ── Test: disabled ────────────────────────────────────────────────────
+test_disabled() {
+    set_uci UCI_main_enabled 0
+    start_service
+    # start_service should return early — no TOML file written
+    [ ! -f "$TOML_FILE" ]
+}
+
+# ── Test: relay_url present ───────────────────────────────────────────
+test_relay_url_present() {
+    set_uci UCI_main_relay_url "https://relay.example.com"
+    start_service
+    validate --check relay_url "https://relay.example.com"
+}
+
+# ── Test: relay_url absent ────────────────────────────────────────────
+test_relay_url_absent() {
+    # Empty relay_url (default) — key should not appear
+    start_service
+    validate --check-absent relay_url
+}
+
+# ── Test: mdns_stale_timeout conditional ──────────────────────────────
+test_mdns_timeout_conditional() {
+    set_uci UCI_main_no_mdns 1
+    start_service
+    validate \
+        --check no_mdns true \
+        --check-absent mdns_stale_timeout
+}
+
 # ── Run ───────────────────────────────────────────────────────────────
 printf "Running TOML generation tests...\n\n"
 run_test test_defaults
+run_test test_disabled
+run_test test_relay_url_present
+run_test test_relay_url_absent
+run_test test_mdns_timeout_conditional
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
