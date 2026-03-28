@@ -209,6 +209,14 @@ cargo build -p harmony-node \
 
 Note: omit `--features no-neon` when using a cross-compiler — NEON is enabled by default.
 
+## Testing
+
+Run the init script TOML generation tests (requires Python 3.11+):
+
+```bash
+sh tests/test_toml_gen.sh
+```
+
 ## License
 
 Apache-2.0 OR MIT — same as [harmony core](https://github.com/zeblithic/harmony).
