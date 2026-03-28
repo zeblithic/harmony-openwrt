@@ -204,6 +204,30 @@ test_int_validation() {
         --check compute_budget 100000
 }
 
+# ── Test: storage_path=none forces volatile ───────────────────────────
+test_storage_none() {
+    set_uci UCI_main_storage_path "none"
+    start_service
+    validate --check data_dir "/var/lib/harmony"
+}
+
+# ── Test: storage_path explicit override ──────────────────────────────
+test_storage_custom_path() {
+    set_uci UCI_main_storage_path "/mnt/usb/custom"
+    start_service
+    validate --check data_dir "/mnt/usb/custom"
+}
+
+# ── Test: boolean edge cases ──────────────────────────────────────────
+test_bool_edge_cases() {
+    # Non-numeric value: _bool's [ "$1" -eq 1 ] fails silently,
+    # falls through to "false". Documents that the mock doesn't
+    # normalize like real config_get_bool.
+    set_uci UCI_main_encrypted_durable_persist "yes"
+    start_service
+    validate --check encrypted_durable_persist false
+}
+
 # ── Run ───────────────────────────────────────────────────────────────
 printf "Running TOML generation tests...\n\n"
 run_test test_defaults
@@ -215,6 +239,9 @@ run_test test_tunnel_peers_and_ordering
 run_test test_special_chars_in_strings
 run_test test_newline_injection
 run_test test_int_validation
+run_test test_storage_none
+run_test test_storage_custom_path
+run_test test_bool_edge_cases
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
