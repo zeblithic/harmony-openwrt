@@ -146,6 +146,21 @@ test_mdns_timeout_conditional() {
         --check-absent mdns_stale_timeout
 }
 
+# ── Test: tunnel peers + section ordering ─────────────────────────────
+test_tunnel_peers_and_ordering() {
+    set_uci UCI_main_tunnel_peer_LIST "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233 ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344"
+    start_service
+    # Validate tunnel content
+    validate \
+        --check-section "tunnels[0].node_id" "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233" \
+        --check-section "tunnels[1].node_id" "ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344"
+    # Validate ordering: data_dir must appear before first [[tunnels]]
+    local data_line tunnel_line
+    data_line=$(grep -n '^data_dir' "$TOML_FILE" | head -1 | cut -d: -f1)
+    tunnel_line=$(grep -n '^\[\[tunnels\]\]' "$TOML_FILE" | head -1 | cut -d: -f1)
+    [ -n "$data_line" ] && [ -n "$tunnel_line" ] && [ "$data_line" -lt "$tunnel_line" ]
+}
+
 # ── Run ───────────────────────────────────────────────────────────────
 printf "Running TOML generation tests...\n\n"
 run_test test_defaults
@@ -153,6 +168,7 @@ run_test test_disabled
 run_test test_relay_url_present
 run_test test_relay_url_absent
 run_test test_mdns_timeout_conditional
+run_test test_tunnel_peers_and_ordering
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
