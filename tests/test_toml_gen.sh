@@ -16,7 +16,11 @@ trap 'rm -rf "$TEST_TMPDIR"' EXIT
 # ── UCI var tracking ──────────────────────────────────────────────────
 _UCI_VARS=""
 set_uci() {
-    eval "$1='$2'"
+    # Escape single quotes in value so eval with single-quote wrapping is safe.
+    # Replaces ' with '\'' (end quote, literal quote, reopen quote).
+    local _escaped
+    _escaped="$(printf '%s' "$2" | sed "s/'/'\\\\''/"'g')"
+    eval "$1='$_escaped'"
     _UCI_VARS="$_UCI_VARS $1"
 }
 reset_uci() {
@@ -41,9 +45,12 @@ config_list_foreach() {
     local _section="$1" _key="$2" _cb="$3"
     local _env_var="UCI_${_section}_${_key}_LIST"
     eval "local _list=\"\${$_env_var:-}\""
+    # Disable globbing so list values containing * or ? are not expanded.
+    set -f
     for _item in $_list; do
         "$_cb" "$_item"
     done
+    set +f
 }
 
 # ── Procd mocks ───────────────────────────────────────────────────────
@@ -89,8 +96,9 @@ run_test() {
     else
         FAIL=$((FAIL + 1))
         printf "  FAIL  %s\n" "$name"
-        # Show stderr on failure for debugging
-        [ -s "$TEST_TMPDIR/stderr.log" ] && cat "$TEST_TMPDIR/stderr.log" >&2
+        # Show stderr on failure for debugging (|| true prevents set -e abort
+        # when stderr.log is empty — the && short-circuit returns 1 otherwise)
+        [ -s "$TEST_TMPDIR/stderr.log" ] && cat "$TEST_TMPDIR/stderr.log" >&2 || true
     fi
 }
 
