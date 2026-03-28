@@ -1,0 +1,123 @@
+#!/bin/sh
+# Test harness for harmony-node init script TOML generation.
+# Mocks OpenWRT's UCI/procd/filesystem APIs so start_service runs
+# unmodified outside a router.
+#
+# Usage: sh tests/test_toml_gen.sh
+# Requires: Python 3.11+ (for tomllib)
+set -e
+
+PASS=0
+FAIL=0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TEST_TMPDIR="$(mktemp -d)"
+trap 'rm -rf "$TEST_TMPDIR"' EXIT
+
+# ── UCI var tracking ──────────────────────────────────────────────────
+_UCI_VARS=""
+set_uci() {
+    eval "$1='$2'"
+    _UCI_VARS="$_UCI_VARS $1"
+}
+reset_uci() {
+    for _v in $_UCI_VARS; do unset "$_v" 2>/dev/null; done
+    _UCI_VARS=""
+}
+
+# ── UCI mocks ─────────────────────────────────────────────────────────
+config_load() { :; }
+
+config_get() {
+    local _var="$1" _section="$2" _key="$3" _default="$4"
+    local _env_var="UCI_${_section}_${_key}"
+    eval "$_var=\"\${$_env_var:-$_default}\""
+}
+
+# Limitation: real config_get_bool normalizes "true"/"yes" to 1.
+# This mock passes through raw values. Use 0/1 only.
+config_get_bool() { config_get "$@"; }
+
+config_list_foreach() {
+    local _section="$1" _key="$2" _cb="$3"
+    local _env_var="UCI_${_section}_${_key}_LIST"
+    eval "local _list=\"\${$_env_var:-}\""
+    for _item in $_list; do
+        "$_cb" "$_item"
+    done
+}
+
+# ── Procd mocks ───────────────────────────────────────────────────────
+procd_open_instance() { :; }
+procd_set_param() { :; }
+procd_close_instance() { :; }
+procd_add_reload_trigger() { :; }
+
+# ── Filesystem mocks ─────────────────────────────────────────────────
+mkdir() { :; }
+chown() { :; }
+chmod() { :; }
+mountpoint() { return 1; }
+block() { :; }
+
+# ── Logger mock ───────────────────────────────────────────────────────
+LOGGER_OUTPUT=""
+logger() { LOGGER_OUTPUT="$LOGGER_OUTPUT $*"; }
+
+# ── Source the init script ────────────────────────────────────────────
+# IMPORTANT: Source BEFORE overriding TOML_FILE. The init script's
+# top-level TOML_FILE="/tmp/harmony-node.toml" executes during sourcing
+# and would clobber our override if we set it first.
+. "$SCRIPT_DIR/../harmony-node/files/harmony-node.init"
+
+# ── Override TOML path (AFTER sourcing) ───────────────────────────────
+TOML_FILE="$TEST_TMPDIR/harmony-node.toml"
+
+# ── Validator helper ──────────────────────────────────────────────────
+validate() {
+    python3 "$SCRIPT_DIR/validate_toml.py" "$@" < "$TOML_FILE"
+}
+
+# ── Test runner ───────────────────────────────────────────────────────
+run_test() {
+    local name="$1"
+    reset_uci
+    rm -f "$TOML_FILE"
+    LOGGER_OUTPUT=""
+    if "$name" 2>"$TEST_TMPDIR/stderr.log"; then
+        PASS=$((PASS + 1))
+        printf "  PASS  %s\n" "$name"
+    else
+        FAIL=$((FAIL + 1))
+        printf "  FAIL  %s\n" "$name"
+        # Show stderr on failure for debugging
+        [ -s "$TEST_TMPDIR/stderr.log" ] && cat "$TEST_TMPDIR/stderr.log" >&2
+    fi
+}
+
+# ── Test: defaults ────────────────────────────────────────────────────
+test_defaults() {
+    # No UCI vars set — all defaults
+    start_service
+    validate \
+        --check listen_address "0.0.0.0:4242" \
+        --check identity_file "/etc/harmony/identity.key" \
+        --check cache_capacity 256 \
+        --check compute_budget 100000 \
+        --check filter_broadcast_ticks 30 \
+        --check filter_mutation_threshold 100 \
+        --check encrypted_durable_persist false \
+        --check encrypted_durable_announce false \
+        --check no_public_ephemeral_announce false \
+        --check no_mdns false \
+        --check mdns_stale_timeout 60 \
+        --check data_dir "/var/lib/harmony" \
+        --check-absent relay_url \
+        --check-absent tunnels
+}
+
+# ── Run ───────────────────────────────────────────────────────────────
+printf "Running TOML generation tests...\n\n"
+run_test test_defaults
+
+printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
+[ "$FAIL" -eq 0 ]
