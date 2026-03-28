@@ -161,6 +161,49 @@ test_tunnel_peers_and_ordering() {
     [ -n "$data_line" ] && [ -n "$tunnel_line" ] && [ "$data_line" -lt "$tunnel_line" ]
 }
 
+# ── Test: special characters in strings ───────────────────────────────
+test_special_chars_in_strings() {
+    set_uci UCI_main_identity_file '/etc/harmony/my key\.key'
+    set_uci UCI_main_listen_address '[::1]:4242'
+    start_service
+    validate \
+        --check identity_file '/etc/harmony/my key\.key' \
+        --check listen_address '[::1]:4242'
+}
+
+# ── Test: newline injection ───────────────────────────────────────────
+test_newline_injection() {
+    # A newline in a UCI value should not corrupt TOML structure.
+    # _toml_str does NOT escape newlines — it only escapes \ and ".
+    # The generated TOML will contain a literal newline inside a
+    # double-quoted string, which is invalid TOML. This test documents
+    # the current behavior: we expect a TOML parse failure.
+    # If _toml_str is later improved to escape \n, change this test
+    # to expect success.
+    UCI_main_relay_url="$(printf 'https://evil.example.com\ninjected_key = "pwned"')"
+    _UCI_VARS="$_UCI_VARS UCI_main_relay_url"
+    start_service
+    # The TOML should fail to parse (newline inside bare string).
+    # If it somehow parses, the injected key must NOT exist.
+    if python3 "$SCRIPT_DIR/validate_toml.py" < "$TOML_FILE" 2>/dev/null; then
+        # Parsed successfully — injection must not have created a real key
+        python3 "$SCRIPT_DIR/validate_toml.py" --check-absent injected_key < "$TOML_FILE"
+        return $?
+    fi
+    # Parse failure is the expected (safe) outcome
+    return 0
+}
+
+# ── Test: integer validation fallback ─────────────────────────────────
+test_int_validation() {
+    set_uci UCI_main_cache_capacity "abc"
+    set_uci UCI_main_compute_budget "-5"
+    start_service
+    validate \
+        --check cache_capacity 256 \
+        --check compute_budget 100000
+}
+
 # ── Run ───────────────────────────────────────────────────────────────
 printf "Running TOML generation tests...\n\n"
 run_test test_defaults
@@ -169,6 +212,9 @@ run_test test_relay_url_present
 run_test test_relay_url_absent
 run_test test_mdns_timeout_conditional
 run_test test_tunnel_peers_and_ordering
+run_test test_special_chars_in_strings
+run_test test_newline_injection
+run_test test_int_validation
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
