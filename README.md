@@ -6,7 +6,7 @@ OpenWRT package feed for [Harmony](https://github.com/zeblithic/harmony) mesh ne
 
 | Package | Description |
 |---------|-------------|
-| `harmony-node` | Harmony decentralized mesh node (~3 MB static binary) |
+| `harmony-node` | Harmony decentralized mesh node (~33 MB static binary) |
 
 ## Prerequisites
 
