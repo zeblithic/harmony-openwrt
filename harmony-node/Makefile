@@ -2,11 +2,11 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=harmony-node
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=9
+PKG_RELEASE:=10
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/zeblithic/harmony.git
-PKG_SOURCE_VERSION:=396f97e9311f4d3df8b0087ad0100af9b05d89a5
+PKG_SOURCE_VERSION:=73f526a7134979892001c9e29af1a4920a6aa95f
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_SOURCE_SUBDIR).tar.gz
 # Git-sourced packages generate the tarball locally from the cloned repo,
