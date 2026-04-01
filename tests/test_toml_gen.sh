@@ -170,14 +170,17 @@ test_rawlink_interface_hyphen() {
 # ── Test: rawlink_interface newline injection ─────────────────────────
 test_rawlink_interface_injection() {
     # Mirror of test_newline_injection but for rawlink_interface.
+    # Use a short value (under IFNAMSIZ) so the length check doesn't
+    # reject it first — we want to exercise the newline-in-TOML path.
     # _toml_str does NOT escape newlines — a literal newline inside a
     # double-quoted string is invalid TOML. This test documents the
     # current behavior: we expect a TOML parse failure.
-    UCI_main_rawlink_interface="$(printf 'mesh0\ninjected_key = "pwned"')"
+    UCI_main_rawlink_interface="$(printf 'eth0\nx = "pwned"')"
     _UCI_VARS="$_UCI_VARS UCI_main_rawlink_interface"
     start_service
     if python3 "$SCRIPT_DIR/validate_toml.py" < "$TOML_FILE" 2>/dev/null; then
-        python3 "$SCRIPT_DIR/validate_toml.py" --check-absent injected_key < "$TOML_FILE"
+        # Parsed successfully — injection must not have created a real key
+        python3 "$SCRIPT_DIR/validate_toml.py" --check-absent x < "$TOML_FILE"
         return $?
     fi
     # Parse failure is the expected (safe) outcome
