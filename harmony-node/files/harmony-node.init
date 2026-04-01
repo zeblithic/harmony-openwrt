@@ -25,6 +25,7 @@ start_service() {
 	local no_mdns mdns_stale_timeout
 	local relay_url storage_path rawlink_interface
 	local disk_quota logging_level
+	local needs_raw_cap=0
 
 	config_load harmony-node
 	config_get_bool enabled main enabled 1
@@ -133,6 +134,7 @@ start_service() {
 		else
 			rawlink_interface="$(_toml_str "$rawlink_interface")"
 			echo "rawlink_interface = \"$rawlink_interface\"" >> "$TOML_FILE"
+			needs_raw_cap=1
 		fi
 	fi
 
@@ -176,6 +178,9 @@ start_service() {
 	procd_set_param file "$TOML_FILE"
 	procd_set_param user harmony
 	procd_set_param group harmony
+	if [ "$needs_raw_cap" -eq 1 ]; then
+		procd_set_param capabilities '{"cap.permitted":["cap_net_raw"],"cap.effective":["cap_net_raw"],"cap.inheritable":["cap_net_raw"]}'
+	fi
 	procd_set_param respawn
 	procd_set_param stdout 1
 	procd_set_param stderr 1

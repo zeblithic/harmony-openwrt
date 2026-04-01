@@ -22,10 +22,10 @@ PKG_BUILD_DEPENDS:=rust/host
 # x86_64: no feature flag — SSE2/AVX2 assembly compiles fine with $(TARGET_CC) from SDK
 ifeq ($(ARCH),aarch64)
   RUST_TARGET:=aarch64-unknown-linux-musl
-  RUST_FEATURES:=--features no-neon
+  RUST_FEATURES:=--features no-neon,rawlink
 else ifeq ($(ARCH),x86_64)
   RUST_TARGET:=x86_64-unknown-linux-musl
-  RUST_FEATURES:=
+  RUST_FEATURES:=--features rawlink
 else
   # Sentinel — Build/Compile will error if this package is actually selected.
   RUST_TARGET:=unsupported-$(ARCH)
