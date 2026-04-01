@@ -164,12 +164,24 @@ start_service() {
 	fi
 
 	# Tunnel peers: UCI list → [[tunnels]] sections.
-	# UCI format is just a node_id hex string (matching TOML TunnelEntry).
+	# UCI format: 'node_id_hex' or 'node_id_hex:friendly-name'.
+	# Node IDs are hex ([0-9a-f]), so colon is an unambiguous delimiter.
+	# Only the first colon is significant (name may theoretically contain colons).
 	_harmony_emit_tunnel_cb() {
 		[ -n "$1" ] || return 0
-		local node_id
-		node_id="$(_toml_str "$1")"
+		local node_id name
+		# Split on first colon: node_id:name (name is optional)
+		node_id="${1%%:*}"
+		name="${1#*:}"
+		# If no colon was present, name equals the full input (= node_id)
+		[ "$name" = "$1" ] && name=""
+
+		node_id="$(_toml_str "$node_id")"
 		printf '\n[[tunnels]]\nnode_id = "%s"\n' "$node_id" >> "$TOML_FILE"
+		if [ -n "$name" ]; then
+			name="$(_toml_str "$name")"
+			printf 'name = "%s"\n' "$name" >> "$TOML_FILE"
+		fi
 	}
 	config_list_foreach main tunnel_peer _harmony_emit_tunnel_cb
 

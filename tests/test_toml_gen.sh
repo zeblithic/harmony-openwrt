@@ -216,17 +216,50 @@ test_mdns_timeout_conditional() {
 
 # ── Test: tunnel peers + section ordering ─────────────────────────────
 test_tunnel_peers_and_ordering() {
-    set_uci UCI_main_tunnel_peer_LIST "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233 ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344"
+    set_uci UCI_main_tunnel_peer_LIST "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233:rpi5-living-room ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344"
     start_service
-    # Validate tunnel content
+    # Validate tunnel content (first has name, second does not)
     validate \
         --check-section "tunnels[0].node_id" "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233" \
-        --check-section "tunnels[1].node_id" "ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344"
+        --check-section "tunnels[0].name" "rpi5-living-room" \
+        --check-section "tunnels[1].node_id" "ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344" \
+        --check-section-absent "tunnels[1].name"
     # Validate ordering: data_dir must appear before first [[tunnels]]
     local data_line tunnel_line
     data_line=$(grep -n '^data_dir' "$TOML_FILE" | head -1 | cut -d: -f1)
     tunnel_line=$(grep -n '^\[\[tunnels\]\]' "$TOML_FILE" | head -1 | cut -d: -f1)
     [ -n "$data_line" ] && [ -n "$tunnel_line" ] && [ "$data_line" -lt "$tunnel_line" ]
+}
+
+# ── Test: tunnel peer with name ──────────────────────────────────────
+test_tunnel_peer_with_name() {
+    set_uci UCI_main_tunnel_peer_LIST "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233:rpi5-living-room"
+    start_service
+    validate \
+        --check-section "tunnels[0].node_id" "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233" \
+        --check-section "tunnels[0].name" "rpi5-living-room"
+}
+
+# ── Test: tunnel peer without name ───────────────────────────────────
+test_tunnel_peer_without_name() {
+    set_uci UCI_main_tunnel_peer_LIST "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233"
+    start_service
+    validate \
+        --check-section "tunnels[0].node_id" "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233" \
+        --check-section-absent "tunnels[0].name"
+}
+
+# ── Test: tunnel peers mixed named and unnamed ───────────────────────
+test_tunnel_peer_mixed() {
+    set_uci UCI_main_tunnel_peer_LIST "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233:garage-node ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344 00112233445566770011223344556677001122334455667700112233445566ab:attic-relay"
+    start_service
+    validate \
+        --check-section "tunnels[0].node_id" "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233" \
+        --check-section "tunnels[0].name" "garage-node" \
+        --check-section "tunnels[1].node_id" "ddeeff0011223344ddeeff0011223344ddeeff0011223344ddeeff0011223344" \
+        --check-section-absent "tunnels[1].name" \
+        --check-section "tunnels[2].node_id" "00112233445566770011223344556677001122334455667700112233445566ab" \
+        --check-section "tunnels[2].name" "attic-relay"
 }
 
 # ── Test: special characters in strings ───────────────────────────────
@@ -422,6 +455,9 @@ run_test test_rawlink_interface_ifnamsiz
 run_test test_rawlink_interface_slash
 run_test test_mdns_timeout_conditional
 run_test test_tunnel_peers_and_ordering
+run_test test_tunnel_peer_with_name
+run_test test_tunnel_peer_without_name
+run_test test_tunnel_peer_mixed
 run_test test_special_chars_in_strings
 run_test test_newline_injection
 run_test test_int_validation

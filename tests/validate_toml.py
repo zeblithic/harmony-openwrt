@@ -69,6 +69,11 @@ def main():
         metavar=("PATH", "VALUE"),
         help="Assert a nested path (e.g. tunnels[0].node_id) equals value",
     )
+    parser.add_argument(
+        "--check-section-absent", action="append", default=[],
+        metavar="PATH",
+        help="Assert a nested path (e.g. tunnels[0].name) is NOT present",
+    )
     args = parser.parse_args()
 
     raw = sys.stdin.buffer.read()
@@ -108,6 +113,15 @@ def main():
             errors.append(
                 f"--check-section {path}: expected {expected_coerced!r}, got {actual!r}"
             )
+
+    for path in args.check_section_absent:
+        try:
+            actual = resolve_path(data, path)
+            errors.append(
+                f"--check-section-absent {path}: path IS present (value={actual!r})"
+            )
+        except (KeyError, IndexError, TypeError):
+            pass  # Not found — expected
 
     if errors:
         for err in errors:

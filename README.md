@@ -96,7 +96,7 @@ uci commit harmony-node
 | `logging_level` | `info` | Log verbosity — maps to TOML `[logging] level`. Values: `error`, `warn`, `info`, `debug`, `trace`. |
 | `rawlink_interface` | *(empty)* | Linux interface name for raw Ethernet (AF_PACKET) transport — enables IP-less Zenoh/Reticulum over 802.11s mesh. When set, the service is automatically granted `CAP_NET_RAW` via procd capabilities. |
 | `relay_url` | *(empty)* | iroh relay URL for NAT-traversal tunnels (enables tunnel accept) |
-| `tunnel_peer` | *(list)* | Tunnel peer node IDs (hex, repeatable) |
+| `tunnel_peer` | *(list)* | Tunnel peer entries (repeatable). Format: `node_id_hex` or `node_id_hex:friendly-name`. The optional `:name` suffix maps to the TOML `name` field in `[[tunnels]]`. |
 
 Edit with `uci`:
 
