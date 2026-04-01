@@ -148,8 +148,17 @@ start_service() {
 
 	# [logging] section: only emit if logging_level is non-empty.
 	# Must come AFTER all root-level keys and BEFORE [[tunnels]] sections.
+	# Validate against known Rust log levels; fall back to 'info' on typo.
 	if [ -n "$logging_level" ]; then
-		printf '\n[logging]\nlevel = "%s"\n' "$(_toml_str "$logging_level")" >> "$TOML_FILE"
+		case "$logging_level" in
+			error|warn|info|debug|trace)
+				printf '\n[logging]\nlevel = "%s"\n' "$(_toml_str "$logging_level")" >> "$TOML_FILE"
+				;;
+			*)
+				logger -t "harmony-node" "WARNING: unknown logging_level '$logging_level', using 'info'"
+				printf '\n[logging]\nlevel = "info"\n' >> "$TOML_FILE"
+				;;
+		esac
 	fi
 
 	# Tunnel peers: UCI list → [[tunnels]] sections.
