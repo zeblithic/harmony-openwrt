@@ -167,6 +167,39 @@ test_rawlink_interface_hyphen() {
     validate --check rawlink_interface "wlan1-mesh"
 }
 
+# ── Test: rawlink_interface newline injection ─────────────────────────
+test_rawlink_interface_injection() {
+    # Mirror of test_newline_injection but for rawlink_interface.
+    # _toml_str does NOT escape newlines — a literal newline inside a
+    # double-quoted string is invalid TOML. This test documents the
+    # current behavior: we expect a TOML parse failure.
+    UCI_main_rawlink_interface="$(printf 'mesh0\ninjected_key = "pwned"')"
+    _UCI_VARS="$_UCI_VARS UCI_main_rawlink_interface"
+    start_service
+    if python3 "$SCRIPT_DIR/validate_toml.py" < "$TOML_FILE" 2>/dev/null; then
+        python3 "$SCRIPT_DIR/validate_toml.py" --check-absent injected_key < "$TOML_FILE"
+        return $?
+    fi
+    # Parse failure is the expected (safe) outcome
+    return 0
+}
+
+# ── Test: rawlink_interface IFNAMSIZ validation ───────────────────────
+test_rawlink_interface_ifnamsiz() {
+    # Linux IFNAMSIZ-1 = 15 chars max. Names over 15 or with / or spaces
+    # should be rejected (not emitted to TOML).
+    set_uci UCI_main_rawlink_interface "this-name-is-way-too-long"
+    start_service
+    validate --check-absent rawlink_interface
+}
+
+# ── Test: rawlink_interface rejects slash ──────────────────────────────
+test_rawlink_interface_slash() {
+    set_uci UCI_main_rawlink_interface "eth0/sub"
+    start_service
+    validate --check-absent rawlink_interface
+}
+
 # ── Test: mdns_stale_timeout conditional ──────────────────────────────
 test_mdns_timeout_conditional() {
     set_uci UCI_main_no_mdns 1
@@ -267,6 +300,9 @@ run_test test_relay_url_absent
 run_test test_rawlink_interface_present
 run_test test_rawlink_interface_absent
 run_test test_rawlink_interface_hyphen
+run_test test_rawlink_interface_injection
+run_test test_rawlink_interface_ifnamsiz
+run_test test_rawlink_interface_slash
 run_test test_mdns_timeout_conditional
 run_test test_tunnel_peers_and_ordering
 run_test test_special_chars_in_strings

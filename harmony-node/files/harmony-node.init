@@ -123,9 +123,14 @@ start_service() {
 	fi
 
 	# rawlink_interface: only emit if non-empty (TOML Option<String> = absent when unset).
+	# Validate: Linux IFNAMSIZ-1 = 15 chars max, no spaces or slashes.
 	if [ -n "$rawlink_interface" ]; then
-		rawlink_interface="$(_toml_str "$rawlink_interface")"
-		echo "rawlink_interface = \"$rawlink_interface\"" >> "$TOML_FILE"
+		if [ "${#rawlink_interface}" -gt 15 ] || printf '%s' "$rawlink_interface" | grep -q '[/ ]'; then
+			logger -t "harmony-node" "WARNING: rawlink_interface '$rawlink_interface' invalid (>15 chars or contains / or space), ignoring"
+		else
+			rawlink_interface="$(_toml_str "$rawlink_interface")"
+			echo "rawlink_interface = \"$rawlink_interface\"" >> "$TOML_FILE"
+		fi
 	fi
 
 	# data_dir: emit the resolved storage path so the binary persists CAS books.
