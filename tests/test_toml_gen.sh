@@ -120,6 +120,7 @@ test_defaults() {
         --check mdns_stale_timeout 60 \
         --check data_dir "/var/lib/harmony" \
         --check-absent relay_url \
+        --check-absent rawlink_interface \
         --check-absent tunnels
 }
 
@@ -143,6 +144,27 @@ test_relay_url_absent() {
     # Empty relay_url (default) — key should not appear
     start_service
     validate --check-absent relay_url
+}
+
+# ── Test: rawlink_interface present ───────────────────────────────────
+test_rawlink_interface_present() {
+    set_uci UCI_main_rawlink_interface "mesh0"
+    start_service
+    validate --check rawlink_interface "mesh0"
+}
+
+# ── Test: rawlink_interface absent ────────────────────────────────────
+test_rawlink_interface_absent() {
+    # Empty rawlink_interface (default) — key should not appear
+    start_service
+    validate --check-absent rawlink_interface
+}
+
+# ── Test: rawlink_interface with hyphen ───────────────────────────────
+test_rawlink_interface_hyphen() {
+    set_uci UCI_main_rawlink_interface "wlan1-mesh"
+    start_service
+    validate --check rawlink_interface "wlan1-mesh"
 }
 
 # ── Test: mdns_stale_timeout conditional ──────────────────────────────
@@ -242,6 +264,9 @@ run_test test_defaults
 run_test test_disabled
 run_test test_relay_url_present
 run_test test_relay_url_absent
+run_test test_rawlink_interface_present
+run_test test_rawlink_interface_absent
+run_test test_rawlink_interface_hyphen
 run_test test_mdns_timeout_conditional
 run_test test_tunnel_peers_and_ordering
 run_test test_special_chars_in_strings
