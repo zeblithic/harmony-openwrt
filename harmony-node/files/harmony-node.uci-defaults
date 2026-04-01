@@ -192,13 +192,20 @@ if [ -n "$(uci -q get wireless.harmony_mesh)" ]; then
       logger -t "$TAG" "ERROR: uci set mesh_rssi_threshold failed"
     fi
   fi
-  # BSS Color on the radio (not the VIF) — need to find which radio the mesh is on.
+  # Radio-level backfills — need to find which radio the mesh is on.
   MESH_RADIO_BF="$(uci -q get wireless.harmony_mesh.device)"
   if [ -n "$MESH_RADIO_BF" ] && [ -z "$(uci -q get wireless."$MESH_RADIO_BF".he_bss_color)" ]; then
     if uci set wireless."$MESH_RADIO_BF".he_bss_color='37'; then
       BACKFILL="$BACKFILL he_bss_color=37"
     else
       logger -t "$TAG" "ERROR: uci set he_bss_color failed"
+    fi
+  fi
+  if [ -n "$MESH_RADIO_BF" ] && [ "$(uci -q get wireless."$MESH_RADIO_BF".wed)" != '0' ]; then
+    if uci set wireless."$MESH_RADIO_BF".wed='0'; then
+      BACKFILL="$BACKFILL wed=0"
+    else
+      logger -t "$TAG" "ERROR: uci set wed failed"
     fi
   fi
   if [ -n "$BACKFILL" ]; then
@@ -346,6 +353,14 @@ uci set wireless.harmony_mesh.mesh_rssi_threshold='-70'
 # Spatial reuse applies against non-Harmony networks using different colors.
 # Silently ignored on non-Wi-Fi-6 radios (802.11ax feature).
 uci set wireless."$MESH_RADIO".he_bss_color='37'
+
+# WED (Wireless Ethernet Dispatch): disable on the mesh radio.
+# OpenWrt bug #18703: WED on MT7981/MT7986 with 802.11s mesh causes TX
+# speeds to collapse to 2-3 Mbps. The NPU/PPE cannot accelerate mesh
+# traffic anyway (broadcasts are not offloadable, and mesh_fwding=0
+# forces local termination), so disabling WED costs nothing.
+# Only affects this radio — other radios (e.g. 2.4GHz AP) retain WED.
+uci set wireless."$MESH_RADIO".wed='0'
 
 # Do NOT modify htmode — the radio's existing config determines whether
 # it runs in HE (WiFi 6), VHT (WiFi 5), or HT (WiFi 4) mode. Forcing
