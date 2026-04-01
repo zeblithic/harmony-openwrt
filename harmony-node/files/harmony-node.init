@@ -176,6 +176,12 @@ start_service() {
 		# If no colon was present, name equals the full input (= node_id)
 		[ "$name" = "$1" ] && name=""
 
+		# Reject entries where node_id resolved to empty (e.g. ":name" with leading colon)
+		if [ -z "$node_id" ]; then
+			logger -t "harmony-node" "WARNING: tunnel_peer entry '$1' has empty node_id, skipping"
+			return 0
+		fi
+
 		node_id="$(_toml_str "$node_id")"
 		printf '\n[[tunnels]]\nnode_id = "%s"\n' "$node_id" >> "$TOML_FILE"
 		if [ -n "$name" ]; then

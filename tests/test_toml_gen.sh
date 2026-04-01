@@ -262,6 +262,29 @@ test_tunnel_peer_mixed() {
         --check-section "tunnels[2].name" "attic-relay"
 }
 
+# ── Test: tunnel peer with leading colon (empty node_id) ─────────────
+test_tunnel_peer_empty_node_id() {
+    # Leading colon → empty node_id → should be skipped entirely
+    set_uci UCI_main_tunnel_peer_LIST ":rpi5-living-room"
+    start_service
+    validate --check-absent tunnels
+}
+
+# ── Test: tunnel peer name newline injection ──────────────────────────
+test_tunnel_peer_name_injection() {
+    # Newline in name field — _toml_str doesn't escape newlines,
+    # so this produces invalid TOML (same known limitation as other fields).
+    UCI_main_tunnel_peer_LIST="$(printf 'aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233:evil\nx = "pwned"')"
+    _UCI_VARS="$_UCI_VARS UCI_main_tunnel_peer_LIST"
+    start_service
+    if python3 "$SCRIPT_DIR/validate_toml.py" < "$TOML_FILE" 2>/dev/null; then
+        python3 "$SCRIPT_DIR/validate_toml.py" --check-absent x < "$TOML_FILE"
+        return $?
+    fi
+    # Parse failure is the expected (safe) outcome
+    return 0
+}
+
 # ── Test: special characters in strings ───────────────────────────────
 test_special_chars_in_strings() {
     set_uci UCI_main_identity_file '/etc/harmony/my key\.key'
@@ -458,6 +481,8 @@ run_test test_tunnel_peers_and_ordering
 run_test test_tunnel_peer_with_name
 run_test test_tunnel_peer_without_name
 run_test test_tunnel_peer_mixed
+run_test test_tunnel_peer_empty_node_id
+run_test test_tunnel_peer_name_injection
 run_test test_special_chars_in_strings
 run_test test_newline_injection
 run_test test_int_validation
