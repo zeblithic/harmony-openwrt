@@ -121,7 +121,9 @@ test_defaults() {
         --check data_dir "/var/lib/harmony" \
         --check-absent relay_url \
         --check-absent rawlink_interface \
-        --check-absent tunnels
+        --check-absent disk_quota \
+        --check-absent tunnels \
+        --check-section "logging.level" "info"
 }
 
 # ── Test: disabled ────────────────────────────────────────────────────
@@ -294,6 +296,59 @@ test_bool_edge_cases() {
     validate --check encrypted_durable_persist false
 }
 
+# ── Test: disk_quota present ──────────────────────────────────────────
+test_disk_quota_present() {
+    set_uci UCI_main_disk_quota '10 GiB'
+    start_service
+    validate --check disk_quota "10 GiB"
+}
+
+# ── Test: disk_quota absent ──────────────────────────────────────────
+test_disk_quota_absent() {
+    # Empty disk_quota (default) — key should not appear
+    start_service
+    validate --check-absent disk_quota
+}
+
+# ── Test: logging_level default ──────────────────────────────────────
+test_logging_level_default() {
+    # Default logging_level is 'info' — [logging] section with level = "info"
+    start_service
+    validate --check-section "logging.level" "info"
+}
+
+# ── Test: logging_level custom ───────────────────────────────────────
+test_logging_level_custom() {
+    set_uci UCI_main_logging_level 'debug'
+    start_service
+    validate --check-section "logging.level" "debug"
+}
+
+# ── Test: logging_level empty ────────────────────────────────────────
+test_logging_level_empty() {
+    # On a real router, `uci set harmony-node.main.logging_level=''` stores
+    # an explicit empty string that config_get returns as-is (ignoring the
+    # default). Our mock uses ${VAR:-default}, which conflates empty with
+    # unset. Use a sentinel value that the mock CAN distinguish from unset,
+    # then patch config_get to map it to empty. This tests the TOML guard
+    # `[ -n "$logging_level" ]`.
+    set_uci UCI_main_logging_level 'EMPTY'
+    config_get() {
+        local _var="$1" _section="$2" _key="$3" _default="$4"
+        local _env_var="UCI_${_section}_${_key}"
+        eval "$_var=\"\${$_env_var:-$_default}\""
+        eval "[ \"\$$_var\" = 'EMPTY' ] && $_var=''"
+    }
+    start_service
+    # Restore original config_get mock.
+    config_get() {
+        local _var="$1" _section="$2" _key="$3" _default="$4"
+        local _env_var="UCI_${_section}_${_key}"
+        eval "$_var=\"\${$_env_var:-$_default}\""
+    }
+    validate --check-absent logging
+}
+
 # ── Run ───────────────────────────────────────────────────────────────
 printf "Running TOML generation tests...\n\n"
 run_test test_defaults
@@ -314,6 +369,11 @@ run_test test_int_validation
 run_test test_storage_none
 run_test test_storage_custom_path
 run_test test_bool_edge_cases
+run_test test_disk_quota_present
+run_test test_disk_quota_absent
+run_test test_logging_level_default
+run_test test_logging_level_custom
+run_test test_logging_level_empty
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

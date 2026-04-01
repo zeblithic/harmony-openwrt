@@ -24,6 +24,7 @@ start_service() {
 	local no_public_ephemeral_announce
 	local no_mdns mdns_stale_timeout
 	local relay_url storage_path rawlink_interface
+	local disk_quota logging_level
 
 	config_load harmony-node
 	config_get_bool enabled main enabled 1
@@ -43,6 +44,8 @@ start_service() {
 	config_get relay_url main relay_url ''
 	config_get storage_path main storage_path ''
 	config_get rawlink_interface main rawlink_interface ''
+	config_get disk_quota main disk_quota ''
+	config_get logging_level main logging_level 'info'
 
 	# Sanitize string values for TOML double-quoted interpolation.
 	# Sanitize strings and validate integers before TOML generation.
@@ -137,6 +140,17 @@ start_service() {
 	# Must come BEFORE [[tunnels]] sections — TOML keys after a [[section]]
 	# header belong to that section, not the root table.
 	echo "data_dir = \"$(_toml_str "$data_dir")\"" >> "$TOML_FILE"
+
+	# disk_quota: only emit if non-empty (TOML Option<String> = absent when unset).
+	if [ -n "$disk_quota" ]; then
+		echo "disk_quota = \"$(_toml_str "$disk_quota")\"" >> "$TOML_FILE"
+	fi
+
+	# [logging] section: only emit if logging_level is non-empty.
+	# Must come AFTER all root-level keys and BEFORE [[tunnels]] sections.
+	if [ -n "$logging_level" ]; then
+		printf '\n[logging]\nlevel = "%s"\n' "$(_toml_str "$logging_level")" >> "$TOML_FILE"
+	fi
 
 	# Tunnel peers: UCI list → [[tunnels]] sections.
 	# UCI format is just a node_id hex string (matching TOML TunnelEntry).
