@@ -179,7 +179,7 @@ start_service() {
 	procd_set_param user harmony
 	procd_set_param group harmony
 	if [ "$needs_raw_cap" -eq 1 ]; then
-		procd_set_param capabilities '{"cap.permitted":["cap_net_raw"],"cap.effective":["cap_net_raw"],"cap.inheritable":["cap_net_raw"]}'
+		procd_set_param capabilities /etc/capabilities/harmony-node.json
 	fi
 	procd_set_param respawn
 	procd_set_param stdout 1
