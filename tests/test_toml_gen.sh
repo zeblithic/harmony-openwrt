@@ -121,7 +121,9 @@ test_defaults() {
         --check data_dir "/var/lib/harmony" \
         --check-absent relay_url \
         --check-absent rawlink_interface \
-        --check-absent tunnels
+        --check-absent disk_quota \
+        --check-absent tunnels \
+        --check-section "logging.level" "info"
 }
 
 # ── Test: disabled ────────────────────────────────────────────────────
@@ -294,6 +296,118 @@ test_bool_edge_cases() {
     validate --check encrypted_durable_persist false
 }
 
+# ── Test: disk_quota present ──────────────────────────────────────────
+test_disk_quota_present() {
+    set_uci UCI_main_disk_quota '10 GiB'
+    start_service
+    validate --check disk_quota "10 GiB"
+}
+
+# ── Test: disk_quota absent ──────────────────────────────────────────
+test_disk_quota_absent() {
+    # Empty disk_quota (default) — key should not appear
+    start_service
+    validate --check-absent disk_quota
+}
+
+# ── Test: logging_level default ──────────────────────────────────────
+test_logging_level_default() {
+    # Default logging_level is 'info' — [logging] section with level = "info"
+    start_service
+    validate --check-section "logging.level" "info"
+}
+
+# ── Test: logging_level custom ───────────────────────────────────────
+test_logging_level_custom() {
+    set_uci UCI_main_logging_level 'debug'
+    start_service
+    validate --check-section "logging.level" "debug"
+}
+
+# ── Test: logging_level empty ────────────────────────────────────────
+test_logging_level_empty() {
+    # On a real router, `uci set harmony-node.main.logging_level=''` stores
+    # an explicit empty string that config_get returns as-is (ignoring the
+    # default). Our mock uses ${VAR:-default}, which conflates empty with
+    # unset. Use a sentinel value that the mock CAN distinguish from unset,
+    # then patch config_get to map it to empty. This tests the TOML guard
+    # `[ -n "$logging_level" ]`.
+    set_uci UCI_main_logging_level 'EMPTY'
+    config_get() {
+        local _var="$1" _section="$2" _key="$3" _default="$4"
+        local _env_var="UCI_${_section}_${_key}"
+        eval "$_var=\"\${$_env_var:-$_default}\""
+        eval "[ \"\$$_var\" = 'EMPTY' ] && $_var=''"
+    }
+    start_service
+    # Restore original config_get mock.
+    config_get() {
+        local _var="$1" _section="$2" _key="$3" _default="$4"
+        local _env_var="UCI_${_section}_${_key}"
+        eval "$_var=\"\${$_env_var:-$_default}\""
+    }
+    validate --check-absent logging
+}
+
+# ── Test: logging_level invalid enum ─────────────────────────────────
+test_logging_level_invalid() {
+    # Invalid value should fall back to 'info' with a logger warning.
+    set_uci UCI_main_logging_level 'verbose'
+    start_service
+    validate --check-section "logging.level" "info"
+}
+
+# ── Test: disk_quota newline injection ────────────────────────────────
+test_disk_quota_injection() {
+    # Mirror of test_newline_injection for disk_quota.
+    # _toml_str does NOT escape newlines — literal newline inside a
+    # double-quoted string is invalid TOML. Documents current behavior.
+    UCI_main_disk_quota="$(printf '10 GiB\nx = "pwned"')"
+    _UCI_VARS="$_UCI_VARS UCI_main_disk_quota"
+    start_service
+    if python3 "$SCRIPT_DIR/validate_toml.py" < "$TOML_FILE" 2>/dev/null; then
+        python3 "$SCRIPT_DIR/validate_toml.py" --check-absent x < "$TOML_FILE"
+        return $?
+    fi
+    # Parse failure is the expected (safe) outcome
+    return 0
+}
+
+# ── Test: logging_level newline injection ─────────────────────────────
+test_logging_level_injection() {
+    # Logging level is now enum-validated, so an injected value with a
+    # newline will fail the case match and fall back to 'info'.
+    UCI_main_logging_level="$(printf 'info\nx = "pwned"')"
+    _UCI_VARS="$_UCI_VARS UCI_main_logging_level"
+    start_service
+    # Enum validation rejects this (not in error|warn|info|debug|trace),
+    # so [logging] level = "info" is emitted as fallback.
+    validate --check-section "logging.level" "info"
+    # Verify the injected key does not exist.
+    validate --check-absent x
+}
+
+# ── Test: disk_quota and logging ordering vs tunnels ──────────────────
+test_ordering_quota_logging_tunnels() {
+    set_uci UCI_main_disk_quota '5 GiB'
+    set_uci UCI_main_logging_level 'debug'
+    set_uci UCI_main_tunnel_peer_LIST "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233"
+    start_service
+    # Verify all values present
+    validate \
+        --check disk_quota "5 GiB" \
+        --check-section "logging.level" "debug" \
+        --check-section "tunnels[0].node_id" "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233"
+    # Verify ordering: disk_quota < [logging] < [[tunnels]]
+    local quota_line logging_line tunnel_line
+    quota_line=$(grep -n '^disk_quota' "$TOML_FILE" | head -1 | cut -d: -f1)
+    logging_line=$(grep -n '^\[logging\]' "$TOML_FILE" | head -1 | cut -d: -f1)
+    tunnel_line=$(grep -n '^\[\[tunnels\]\]' "$TOML_FILE" | head -1 | cut -d: -f1)
+    [ -n "$quota_line" ] && [ -n "$logging_line" ] && [ -n "$tunnel_line" ] \
+        && [ "$quota_line" -lt "$logging_line" ] \
+        && [ "$logging_line" -lt "$tunnel_line" ]
+}
+
 # ── Run ───────────────────────────────────────────────────────────────
 printf "Running TOML generation tests...\n\n"
 run_test test_defaults
@@ -314,6 +428,15 @@ run_test test_int_validation
 run_test test_storage_none
 run_test test_storage_custom_path
 run_test test_bool_edge_cases
+run_test test_disk_quota_present
+run_test test_disk_quota_absent
+run_test test_logging_level_default
+run_test test_logging_level_custom
+run_test test_logging_level_empty
+run_test test_logging_level_invalid
+run_test test_disk_quota_injection
+run_test test_logging_level_injection
+run_test test_ordering_quota_logging_tunnels
 
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
