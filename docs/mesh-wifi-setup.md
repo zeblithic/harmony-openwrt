@@ -283,8 +283,13 @@ Common causes:
 
 - **6 GHz mesh** — blocked by NO-IR regulatory bug in OpenWRT. Track upstream:
   [openwrt/openwrt#20276](https://github.com/openwrt/openwrt/issues/20276)
-- **WED hardware offload** — may cause instability with mesh traffic. If you
-  experience sporadic frame drops, disable WED in `/etc/config/network`.
+- **WED hardware offload** — WED is automatically disabled on the mesh radio
+  by the auto-config script (`wed='0'`). OpenWrt bug
+  [openwrt/openwrt#18703](https://github.com/openwrt/openwrt/issues/18703)
+  documents TX collapse to 2-3 Mbps on MT7981/MT7986 with 802.11s mesh when
+  WED is active. The NPU cannot accelerate mesh broadcasts anyway, so
+  disabling WED costs nothing. If you configured the mesh manually, ensure
+  `option wed '0'` is set on the mesh radio in `/etc/config/wireless`.
 - **Channel selection** — DFS channels (52-144) may cause the mesh to go down
   during radar detection events. Use non-DFS channels (36-48, 149-165) for
   reliability.
