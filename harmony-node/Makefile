@@ -19,13 +19,13 @@ PKG_BUILD_DEPENDS:=rust/host
 
 # Map OpenWRT arch to Rust target triple and BLAKE3 feature flags.
 # aarch64: --features no-neon disables NEON assembly (avoids cc crate for NEON intrinsics)
-# x86_64: no feature flag — SSE2/AVX2 assembly compiles fine with $(TARGET_CC) from SDK
+# x86_64: rawlink only — SSE2/AVX2 assembly compiles fine with $(TARGET_CC) from SDK
 ifeq ($(ARCH),aarch64)
   RUST_TARGET:=aarch64-unknown-linux-musl
-  RUST_FEATURES:=--features no-neon
+  RUST_FEATURES:=--features no-neon,rawlink
 else ifeq ($(ARCH),x86_64)
   RUST_TARGET:=x86_64-unknown-linux-musl
-  RUST_FEATURES:=
+  RUST_FEATURES:=--features rawlink
 else
   # Sentinel — Build/Compile will error if this package is actually selected.
   RUST_TARGET:=unsupported-$(ARCH)
@@ -105,6 +105,9 @@ define Package/harmony-node/install
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/harmony-node.uci-defaults $(1)/etc/uci-defaults/99-harmony-node-setup
+
+	$(INSTALL_DIR) $(1)/etc/capabilities
+	$(INSTALL_DATA) ./files/harmony-node.caps.json $(1)/etc/capabilities/harmony-node.json
 endef
 
 define Package/harmony-node/postinst

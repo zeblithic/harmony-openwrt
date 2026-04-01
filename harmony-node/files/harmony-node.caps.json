@@ -1,0 +1,7 @@
+{
+	"cap.bounding": ["cap_net_raw"],
+	"cap.permitted": ["cap_net_raw"],
+	"cap.effective": ["cap_net_raw"],
+	"cap.inheritable": ["cap_net_raw"],
+	"cap.ambient": ["cap_net_raw"]
+}

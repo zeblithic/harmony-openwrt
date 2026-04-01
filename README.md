@@ -50,13 +50,13 @@ To cross-compile harmony-node directly (replace target as needed):
 git clone https://github.com/zeblithic/harmony.git
 cd harmony
 # For aarch64 (ARM64 routers):
-cargo build -p harmony-node --features no-neon \
+cargo build -p harmony-node --features no-neon,rawlink \
     --target aarch64-unknown-linux-musl \
     --profile release-cross \
     --locked
 
 # For x86_64 (VMs, x86 devices — requires musl C cross-compiler for SSE/AVX):
-cargo build -p harmony-node \
+cargo build -p harmony-node --features rawlink \
     --target x86_64-unknown-linux-musl \
     --profile release-cross \
     --locked
@@ -94,7 +94,7 @@ uci commit harmony-node
 | `no_public_ephemeral_announce` | `0` | Disable public ephemeral announcements |
 | `disk_quota` | *(empty)* | Cap CAS book storage (e.g. `10 GiB`). Empty = unbounded. |
 | `logging_level` | `info` | Log verbosity — maps to TOML `[logging] level`. Values: `error`, `warn`, `info`, `debug`, `trace`. |
-| `rawlink_interface` | *(empty)* | Linux interface name for raw Ethernet (AF_PACKET) transport — enables IP-less Zenoh/Reticulum over 802.11s mesh. Requires CAP_NET_RAW (follow-up). |
+| `rawlink_interface` | *(empty)* | Linux interface name for raw Ethernet (AF_PACKET) transport — enables IP-less Zenoh/Reticulum over 802.11s mesh. When set, the service is automatically granted `CAP_NET_RAW` via procd capabilities. |
 | `relay_url` | *(empty)* | iroh relay URL for NAT-traversal tunnels (enables tunnel accept) |
 | `tunnel_peer` | *(list)* | Tunnel peer node IDs (hex, repeatable) |
 
