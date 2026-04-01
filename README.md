@@ -92,6 +92,7 @@ uci commit harmony-node
 | `encrypted_durable_persist` | `0` | Accept encrypted durable content |
 | `encrypted_durable_announce` | `0` | Announce encrypted durable content |
 | `no_public_ephemeral_announce` | `0` | Disable public ephemeral announcements |
+| `rawlink_interface` | *(empty)* | Linux interface name for raw Ethernet (AF_PACKET) transport — enables IP-less Zenoh/Reticulum over 802.11s mesh. Requires CAP_NET_RAW (follow-up). |
 | `relay_url` | *(empty)* | iroh relay URL for NAT-traversal tunnels (enables tunnel accept) |
 | `tunnel_peer` | *(list)* | Tunnel peer node IDs (hex, repeatable) |
 

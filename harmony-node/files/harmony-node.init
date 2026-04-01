@@ -23,7 +23,7 @@ start_service() {
 	local encrypted_durable_persist encrypted_durable_announce
 	local no_public_ephemeral_announce
 	local no_mdns mdns_stale_timeout
-	local relay_url storage_path
+	local relay_url storage_path rawlink_interface
 
 	config_load harmony-node
 	config_get_bool enabled main enabled 1
@@ -42,6 +42,7 @@ start_service() {
 	config_get mdns_stale_timeout main mdns_stale_timeout 60
 	config_get relay_url main relay_url ''
 	config_get storage_path main storage_path ''
+	config_get rawlink_interface main rawlink_interface ''
 
 	# Sanitize string values for TOML double-quoted interpolation.
 	# Sanitize strings and validate integers before TOML generation.
@@ -119,6 +120,17 @@ start_service() {
 	if [ -n "$relay_url" ]; then
 		relay_url="$(_toml_str "$relay_url")"
 		echo "relay_url = \"$relay_url\"" >> "$TOML_FILE"
+	fi
+
+	# rawlink_interface: only emit if non-empty (TOML Option<String> = absent when unset).
+	# Validate: Linux IFNAMSIZ-1 = 15 chars max, no spaces or slashes.
+	if [ -n "$rawlink_interface" ]; then
+		if [ "${#rawlink_interface}" -gt 15 ] || printf '%s' "$rawlink_interface" | grep -q '[/ ]'; then
+			logger -t "harmony-node" "WARNING: rawlink_interface '$rawlink_interface' invalid (>15 chars or contains / or space), ignoring"
+		else
+			rawlink_interface="$(_toml_str "$rawlink_interface")"
+			echo "rawlink_interface = \"$rawlink_interface\"" >> "$TOML_FILE"
+		fi
 	fi
 
 	# data_dir: emit the resolved storage path so the binary persists CAS books.
