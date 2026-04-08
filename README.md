@@ -135,6 +135,35 @@ the router admin UI, or forward traffic to WAN.
 For advanced configuration, troubleshooting, and band planning, see
 **[docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md)**.
 
+## L2 Transport (IP-less)
+
+The `rawlink_interface` UCI option enables an AF_PACKET bridge that sends Zenoh
+and Reticulum frames directly over raw Ethernet (EtherType `0x88B5`), bypassing
+the Linux IP stack entirely. Peer discovery uses L2 Scout broadcasts instead of
+UDP multicast.
+
+To enable L2 transport on the mesh bridge:
+
+```bash
+uci set harmony-node.main.rawlink_interface='br-harmony'
+uci commit harmony-node
+/etc/init.d/harmony-node restart
+```
+
+When `rawlink_interface` is set, the service is automatically granted `CAP_NET_RAW`
+via procd capabilities — no manual permission changes needed.
+
+**Which interface name?** Use the mesh bridge (`br-harmony`), not the raw wireless
+interface (e.g. `wlan1-1`). The bridge provides a stable name across reboots and
+aggregates all mesh VIFs.
+
+**Parallel operation:** IP-based peering (UDP 4242, 7446, 4434-4435) continues to
+work alongside L2 transport. WAN and LAN peers connect over IP; intra-mesh peers
+use L2 frames. The node accepts traffic from both transports simultaneously.
+
+For a step-by-step setup guide, see
+**[docs/mesh-wifi-setup.md](docs/mesh-wifi-setup.md#ip-less-transport-via-rawlink)**.
+
 ## Firewall
 
 The package installs a firewall include (`/etc/harmony-node.firewall`) that automatically
