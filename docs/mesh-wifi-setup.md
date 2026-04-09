@@ -290,12 +290,16 @@ and runs a bridge loop:
 
 1. **Scout broadcasts** — periodic L2 announcements (frame type `0x01`) advertise
    the node's 128-bit identity hash. Peers populate a local peer table with TTL
-   expiry.
-2. **Zenoh data frames** — Zenoh pub/sub payloads are wrapped in Ethernet frames
-   (frame type `0x02`) and broadcast to all mesh peers. Received frames are
-   published into the local Zenoh session.
-3. **Reticulum packets** — Reticulum announces and link packets travel as raw
-   Ethernet frames (frame type `0x00`), fed into the node's Reticulum event loop.
+   expiry. Scouts are sent directly (not batched).
+2. **Zenoh data frames** — Zenoh pub/sub payloads (frame type `0x02`) are queued
+   for batching.
+3. **Reticulum packets** — Reticulum announces and link packets (frame type `0x00`)
+   are queued for batching.
+4. **Batch flush** — all queued frames from steps 2-3 are packed into a single
+   BATCH frame (type `0x03`) and broadcast as one Ethernet transmission. This
+   reduces PHY preamble overhead on WiFi, where broadcast frames cannot use
+   802.11 A-MSDU/A-MPDU aggregation. If the combined payload exceeds the Ethernet
+   MTU (1500 bytes), multiple batch frames are sent.
 
 IP-based transport continues to work in parallel. WAN peers, LAN peers, and iroh
 QUIC tunnels all use the existing UDP ports. The rawlink bridge only handles
