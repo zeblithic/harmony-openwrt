@@ -146,6 +146,11 @@ UDP multicast.
 into batch frames (type `0x03`) to reduce broadcast airtime overhead. WiFi broadcast
 cannot use 802.11 aggregation, so Harmony batches at the application layer instead.
 
+**Transmission jitter:** When inbound frames are received, outbound batch flushes
+are delayed by a random 100-500ms to break timing correlation between queries and
+responses. This prevents passive observers from mapping cause-and-effect packet
+sequences across the mesh.
+
 To enable L2 transport on the mesh bridge:
 
 ```bash

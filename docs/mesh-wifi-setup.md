@@ -300,6 +300,10 @@ and runs a bridge loop:
    reduces PHY preamble overhead on WiFi, where broadcast frames cannot use
    802.11 A-MSDU/A-MPDU aggregation. If the combined payload exceeds the Ethernet
    MTU (1500 bytes), multiple batch frames are sent.
+5. **Transmission jitter** — when inbound frames were received in the same poll
+   cycle, the batch flush is delayed by a random 100-500ms. This breaks timing
+   correlation between received queries and sent responses, defeating passive
+   traffic analysis. Auto-flushes from full batches bypass the jitter hold.
 
 IP-based transport continues to work in parallel. WAN peers, LAN peers, and iroh
 QUIC tunnels all use the existing UDP ports. The rawlink bridge only handles
