@@ -44,8 +44,8 @@ savings.
 
 ### Full MTU utilization
 
-Batch payloads fill up to 1485 bytes (1500 MTU - 14 Ethernet header - 1
-batch type byte). Maximizing payload per broadcast frame is the primary
+Batch payloads fill up to 1483 bytes (1500 MTU - 14 Ethernet header - 3
+batch header). Maximizing payload per broadcast frame is the primary
 goal, since broadcast airtime is the bottleneck.
 
 ### Event-loop-integrated flush
@@ -68,18 +68,22 @@ alongside Data frames.
 ```
 Ethernet header:  [6 dst_mac][6 src_mac][2 EtherType=0x88B5]
 Batch payload:    [0x03]                                ← frame type BATCH
+                  [2 content_len BE]                    ← total sub-frame bytes
                   [1 sub_type][2 sub_len BE][sub_len B] ← sub-frame 1
                   [1 sub_type][2 sub_len BE][sub_len B] ← sub-frame 2
-                  ...until payload exhausted
+                  ...until content_len bytes consumed
 ```
 
 - **Batch type byte (1B):** `0x03`, identifies this as a batch frame.
+- **Content length (2B):** Total bytes of sub-frame data that follow, as a
+  big-endian u16. The decoder stops after consuming this many bytes,
+  ignoring any trailing padding added by `PaddedSocket`.
 - **Sub-frame header (3B each):** 1 byte frame type + 2 byte payload length
   (big-endian). The payload length does NOT include the 3-byte header.
 - **Sub-frame payload:** Raw bytes, identical to what would follow the frame
   type byte in a standalone frame of that type.
-- **Max batch payload:** 1485 bytes. Each sub-frame costs 3 bytes of header
-  overhead plus its payload.
+- **Max batch payload:** 1483 bytes (1500 MTU - 14 Ethernet header - 3 batch
+  header). Each sub-frame costs 3 bytes of header overhead plus its payload.
 
 ### Existing frame types (unchanged)
 
@@ -100,7 +104,7 @@ buffer.
 ```rust
 pub struct BatchAccumulator {
     buf: Vec<u8>,       // Batch payload being assembled (0x03 prefix written on first push)
-    max_payload: usize, // 1485 = MTU - ETH_HEADER_LEN - 1
+    max_payload: usize, // 1483 = MTU - ETH_HEADER_LEN - BATCH_HEADER
 }
 ```
 
@@ -209,7 +213,7 @@ per-type handlers.
 7. **Decode unknown type** — unknown type skipped by length, next sub-frame
    decodes correctly.
 8. **Max-size sub-frame** — single sub-frame fills entire batch payload
-   (1482 bytes = 1485 - 3 header bytes).
+   (1480 bytes = 1483 - 3 sub-frame header bytes).
 
 ### Integration tests (using MockSocket)
 
