@@ -44,8 +44,9 @@ savings.
 
 ### Full MTU utilization
 
-Batch payloads fill up to 1483 bytes (1500 MTU - 14 Ethernet header - 3
-batch header). Maximizing payload per broadcast frame is the primary
+Batch payloads fill up to 1497 bytes (1500 send_frame payload limit - 3
+batch header). The socket prepends the 14-byte Ethernet header
+separately. Maximizing payload per broadcast frame is the primary
 goal, since broadcast airtime is the bottleneck.
 
 ### Event-loop-integrated flush
@@ -82,7 +83,7 @@ Batch payload:    [0x03]                                ← frame type BATCH
   (big-endian). The payload length does NOT include the 3-byte header.
 - **Sub-frame payload:** Raw bytes, identical to what would follow the frame
   type byte in a standalone frame of that type.
-- **Max batch payload:** 1483 bytes (1500 MTU - 14 Ethernet header - 3 batch
+- **Max batch payload:** 1497 bytes (1500 send_frame payload limit - 3 batch
   header). Each sub-frame costs 3 bytes of header overhead plus its payload.
 
 ### Existing frame types (unchanged)
@@ -104,7 +105,7 @@ buffer.
 ```rust
 pub struct BatchAccumulator {
     buf: Vec<u8>,       // Batch payload being assembled (0x03 prefix written on first push)
-    max_payload: usize, // 1483 = MTU - ETH_HEADER_LEN - BATCH_HEADER
+    max_payload: usize, // 1497 = max_frame_payload - BATCH_HEADER
 }
 ```
 
@@ -213,7 +214,7 @@ per-type handlers.
 7. **Decode unknown type** — unknown type skipped by length, next sub-frame
    decodes correctly.
 8. **Max-size sub-frame** — single sub-frame fills entire batch payload
-   (1480 bytes = 1483 - 3 sub-frame header bytes).
+   (1494 bytes = 1497 - 3 sub-frame header bytes).
 
 ### Integration tests (using MockSocket)
 
