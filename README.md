@@ -142,6 +142,10 @@ and Reticulum frames directly over raw Ethernet (EtherType `0x88B5`), bypassing
 the Linux IP stack entirely. Peer discovery uses L2 Scout broadcasts instead of
 UDP multicast.
 
+**Frame batching:** Outgoing Zenoh and Reticulum frames are automatically packed
+into batch frames (type `0x03`) to reduce broadcast airtime overhead. WiFi broadcast
+cannot use 802.11 aggregation, so Harmony batches at the application layer instead.
+
 To enable L2 transport on the mesh bridge:
 
 ```bash
