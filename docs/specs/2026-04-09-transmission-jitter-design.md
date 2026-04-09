@@ -109,8 +109,12 @@ loop {
 
 ### What changes
 
-- `process_inbound_frames()` return value used as bool (check `!set.is_empty()`)
-- One `Option<Instant>` variable in the loop
+- `process_inbound_frames()` returns `(HashSet<u64>, bool)` — the bool tracks
+  whether any L2 frames were received (set inside the `recv_frames` closure).
+  This is more accurate than checking `!published_hashes.is_empty()` because
+  it captures Scout and Reticulum inbound traffic, not just Data frames.
+- `JitterHold` struct encapsulates the deadline state machine (testable
+  independently of the bridge loop)
 - One `gen_range(100..=500)` call per inbound trigger
 - Explicit flush gated on jitter expiry
 
